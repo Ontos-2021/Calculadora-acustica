@@ -3,30 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <title>Resultados Acústicos</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>Resultados Acústicos</h1>
-    <h2>Modos de Resonancia</h2>
-    <ul>
-        {% for modo in modos_resonancia['modos'] %}
-        <li>{{ modo }}</li>
-        {% endfor %}
-    </ul>
+    <header>
+        <h1>Resultados Acústicos</h1>
+    </header>
+    <div class="results">
+        <h2>Modos de Resonancia</h2>
+        <ul>
+            {% for modo in modos_resonancia['modos'] %}
+            <li>{{ modo }}</li>
+            {% endfor %}
+        </ul>
 
-    <h2>RT60</h2>
-    <ul>
-        {% for metodo, valor in rt60_values.items() %}
-        <li>{{ metodo }}: {{ valor }} ms</li>
-        {% endfor %}
-    </ul>
+        <h2>RT60</h2>
+        <ul>
+            {% for metodo, valor in rt60_values.items() %}
+            <li>{{ metodo }}: {{ valor }} ms</li>
+            {% endfor %}
+        </ul>
 
-    <h2>Criterio de Bonello</h2>
-    <ul>
-        {% for banda, cantidad in bonello_result.items() %}
-        <li>{{ banda }} Hz: {{ cantidad }} modos</li>
-        {% endfor %}
-    </ul>
+        <h2>Criterio de Bonello</h2>
+        <ul>
+            {% for banda, cantidad in bonello_result.items() %}
+            <li>{{ banda }} Hz: {{ cantidad }} modos</li>
+            {% endfor %}
+        </ul>
 
-    <a href="{{ url_for('main.index') }}">Volver</a>
+        <a href="{{ url_for('main.index') }}">Volver</a>
+    </div>
 </body>
 </html>
