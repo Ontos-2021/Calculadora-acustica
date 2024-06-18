@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora Acústica</title>
+</head>
+<body>
+    <h1>Calculadora Acústica</h1>
+    <form action="{{ url_for('main.results') }}" method="post">
+        <label for="largo">Largo (m):</label>
+        <input type="text" id="largo" name="largo"><br>
+        <label for="ancho">Ancho (m):</label>
+        <input type="text" id="ancho" name="ancho"><br>
+        <label for="alto">Alto (m):</label>
+        <input type="text" id="alto" name="alto"><br>
+        <label for="alfa_1">Alfa (Frente):</label>
+        <input type="text" id="alfa_1" name="alfa_1"><br>
+        <label for="alfa_2">Alfa (Contrafrente):</label>
+        <input type="text" id="alfa_2" name="alfa_2"><br>
+        <label for="alfa_3">Alfa (Lateral Izquierdo):</label>
+        <input type="text" id="alfa_3" name="alfa_3"><br>
+        <label for="alfa_4">Alfa (Lateral Derecho):</label>
+        <input type="text" id="alfa_4" name="alfa_4"><br>
+        <label for="alfa_5">Alfa (Piso):</label>
+        <input type="text" id="alfa_5" name="alfa_5"><br>
+        <label for="alfa_6">Alfa (Techo):</label>
+        <input type="text" id="alfa_6" name="alfa_6"><br>
+        <button type="submit">Calcular</button>
+    </form>
+</body>
+</html>
