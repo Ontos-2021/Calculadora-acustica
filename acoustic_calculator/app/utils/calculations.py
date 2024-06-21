@@ -50,6 +50,7 @@ def calculate_resonance_modes(largo, ancho, alto):
 
 
 def calculate_rt60(largo, ancho, alto, alfas):
+    print(f"TEST---> ALFAS: {alfas}")
     volumen = largo * ancho * alto
     superficies = [
         largo * ancho,  # Techo
@@ -64,11 +65,20 @@ def calculate_rt60(largo, ancho, alto, alfas):
 
     def sabine(volumen):
         A_total = sum([pared["Superficie"] * pared["Alfa"] for pared in paredes])
-        return float(round((0.161 * volumen / A_total) * 1000, 1))
+        print(F"TEST: ALFA TOTAL dentro de la función Sabine: {A_total}")
+        superficie_total = sum([pared["Superficie"] for pared in paredes])
+        print(f"TEST: Superficie dentro de la función Sabine: {superficie_total}")
+        alfa_promedio = A_total/superficie_total
+        print(f"Este es el alfa promedio dentro de la función Sabine: {alfa_promedio}")
+        return float(round((0.161 * volumen / A_total )* 1000, 1))
 
     def eyring(volumen):
         A_total = sum([pared["Superficie"] * pared["Alfa"] for pared in paredes])
+        print(F"TEST: ALFA TOTAL dentro de la función Eyring: {A_total}")
         superficie_total = sum([pared["Superficie"] for pared in paredes])
+        print(f"Superficie total dentro de la función Eyring: {superficie_total}")
+        alfa_promedio = A_total / superficie_total
+        print(f"Este es el alfa promedio dentro de la función Sabine: {alfa_promedio}")
         return float(
             round((0.161 * volumen) / (-1 * superficie_total * math.log(1 - (A_total / superficie_total))) * 1000, 1))
 
