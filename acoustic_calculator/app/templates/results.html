@@ -3,38 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <title>Resultados Acústicos</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header>
-        <h1>Resultados Acústicos</h1>
-    </header>
-    <div class="results">
-        <h2>Modos de Resonancia</h2>
-        <ul>
-            {% for modo in modos_resonancia['modos'] %}
-            <li>{{ modo }}</li>
-            {% endfor %}
-        </ul>
-
-        <h2>RT60</h2>
-        <ul>
-            {% for metodo, valor in rt60_values.items() %}
-            <li>{{ metodo }}: {{ valor }} ms</li>
-            {% endfor %}
-        </ul>
-
-        <h2>Criterio de Bonello</h2>
-        <ul>
-            {% for banda, cantidad in bonello_result.items() %}
-            <li>{{ banda }} Hz: {{ cantidad }} modos</li>
-            {% endfor %}
-        </ul>
-
-        <h2>Distribución de Modos</h2>
-        <img src="data:image/png;base64,{{ plot_url }}" alt="Distribución de Modos">
-
-        <a href="{{ url_for('main.index') }}">Volver</a>
+    <div class="container mt-5">
+        <header class="text-center mb-4">
+            <h1 class="display-4">Resultados Acústicos</h1>
+        </header>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">Modos de Resonancia</h2>
+                <ul class="list-group list-group-flush">
+                    {% for modo in modos_resonancia['modos'] %}
+                    <li class="list-group-item">{{ modo }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">RT60</h2>
+                <ul class="list-group list-group-flush">
+                    {% for metodo, valor in rt60_values.items() %}
+                    <li class="list-group-item">{{ metodo }}: {{ valor }} ms</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">Criterio de Bonello</h2>
+                <ul class="list-group list-group-flush">
+                    {% for banda, cantidad in bonello_result.items() %}
+                    <li class="list-group-item">{{ banda }} Hz: {{ cantidad }} modos</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h2 class="card-title">Distribución de Modos</h2>
+                <img src="data:image/png;base64,{{ plot_url }}" alt="Distribución de Modos" class="img-fluid">
+            </div>
+        </div>
+        <div class="text-center">
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Volver</a>
+        </div>
     </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

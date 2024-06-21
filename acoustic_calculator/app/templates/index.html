@@ -3,32 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <title>Calculadora Acústica</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header>
-        <h1>Calculadora Acústica</h1>
-    </header>
-    <form action="{{ url_for('main.results') }}" method="post">
-        <label for="largo">Largo (m):</label>
-        <input type="text" id="largo" name="largo"><br>
-        <label for="ancho">Ancho (m):</label>
-        <input type="text" id="ancho" name="ancho"><br>
-        <label for="alto">Alto (m):</label>
-        <input type="text" id="alto" name="alto"><br>
-        <label for="alfa_1">Alfa (Frente):</label>
-        <input type="text" id="alfa_1" name="alfa_1"><br>
-        <label for="alfa_2">Alfa (Contrafrente):</label>
-        <input type="text" id="alfa_2" name="alfa_2"><br>
-        <label for="alfa_3">Alfa (Lateral Izquierdo):</label>
-        <input type="text" id="alfa_3" name="alfa_3"><br>
-        <label for="alfa_4">Alfa (Lateral Derecho):</label>
-        <input type="text" id="alfa_4" name="alfa_4"><br>
-        <label for="alfa_5">Alfa (Piso):</label>
-        <input type="text" id="alfa_5" name="alfa_5"><br>
-        <label for="alfa_6">Alfa (Techo):</label>
-        <input type="text" id="alfa_6" name="alfa_6"><br>
-        <button type="submit">Calcular</button>
-    </form>
+    <div class="container mt-5">
+        <header class="text-center mb-4">
+            <h1 class="display-4">Calculadora Acústica</h1>
+        </header>
+        <form action="{{ url_for('main.results') }}" method="post">
+            <div class="form-group">
+                <label for="largo">Largo (m):</label>
+                <input type="text" class="form-control" id="largo" name="largo">
+            </div>
+            <div class="form-group">
+                <label for="ancho">Ancho (m):</label>
+                <input type="text" class="form-control" id="ancho" name="ancho">
+            </div>
+            <div class="form-group">
+                <label for="alto">Alto (m):</label>
+                <input type="text" class="form-control" id="alto" name="alto">
+            </div>
+            <div class="form-group">
+                <label for="alfa_1">Alfa (Frente):</label>
+                <input type="text" class="form-control" id="alfa_1" name="alfa_1">
+            </div>
+            <div class="form-group">
+                <label for="alfa_2">Alfa (Contrafrente):</label>
+                <input type="text" class="form-control" id="alfa_2" name="alfa_2">
+            </div>
+            <div class="form-group">
+                <label for="alfa_3">Alfa (Lateral Izquierdo):</label>
+                <input type="text" class="form-control" id="alfa_3" name="alfa_3">
+            </div>
+            <div class="form-group">
+                <label for="alfa_4">Alfa (Lateral Derecho):</label>
+                <input type="text" class="form-control" id="alfa_4" name="alfa_4">
+            </div>
+            <div class="form-group">
+                <label for="alfa_5">Alfa (Piso):</label>
+                <input type="text" class="form-control" id="alfa_5" name="alfa_5">
+            </div>
+            <div class="form-group">
+                <label for="alfa_6">Alfa (Techo):</label>
+                <input type="text" class="form-control" id="alfa_6" name="alfa_6">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Calcular</button>
+        </form>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
