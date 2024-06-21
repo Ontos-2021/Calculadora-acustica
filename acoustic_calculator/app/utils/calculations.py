@@ -2,6 +2,7 @@ import math
 
 
 def combine_modes(n):
+    """Genera todas las combinaciones de modos axiales, tangenciales y oblicuos hasta n."""
     combinaciones = []
 
     def combinar(nx, ny, nz):
@@ -26,7 +27,8 @@ def combine_modes(n):
 
 
 def calculate_resonance_modes(largo, ancho, alto):
-    n = 3
+    """Calcula las frecuencias de los modos de resonancia para una sala con las dimensiones dadas."""
+    n = 5
     combinaciones = combine_modes(n)
     modos = []
 
@@ -35,7 +37,7 @@ def calculate_resonance_modes(largo, ancho, alto):
         x = (nx / largo) ** 2
         y = (ny / ancho) ** 2
         z = (nz / alto) ** 2
-        xyz = (x + y + z) ** 0.5  # Convertimos a float directamente
+        xyz = (x + y + z) ** 0.5
         return round((343 / 2) * xyz, 1)
 
     for combinacion in combinaciones:
@@ -50,7 +52,7 @@ def calculate_resonance_modes(largo, ancho, alto):
 
 
 def calculate_rt60(largo, ancho, alto, alfas):
-    print(f"TEST---> ALFAS: {alfas}")
+    """Calcula el tiempo de reverberación RT60 usando varias fórmulas."""
     volumen = largo * ancho * alto
     superficies = [
         largo * ancho,  # Techo
@@ -65,20 +67,11 @@ def calculate_rt60(largo, ancho, alto, alfas):
 
     def sabine(volumen):
         A_total = sum([pared["Superficie"] * pared["Alfa"] for pared in paredes])
-        print(F"TEST: ALFA TOTAL dentro de la función Sabine: {A_total}")
-        superficie_total = sum([pared["Superficie"] for pared in paredes])
-        print(f"TEST: Superficie dentro de la función Sabine: {superficie_total}")
-        alfa_promedio = A_total/superficie_total
-        print(f"Este es el alfa promedio dentro de la función Sabine: {alfa_promedio}")
-        return float(round((0.161 * volumen / A_total )* 1000, 1))
+        return float(round((0.161 * volumen / A_total) * 1000, 1))
 
     def eyring(volumen):
         A_total = sum([pared["Superficie"] * pared["Alfa"] for pared in paredes])
-        print(F"TEST: ALFA TOTAL dentro de la función Eyring: {A_total}")
         superficie_total = sum([pared["Superficie"] for pared in paredes])
-        print(f"Superficie total dentro de la función Eyring: {superficie_total}")
-        alfa_promedio = A_total / superficie_total
-        print(f"Este es el alfa promedio dentro de la función Sabine: {alfa_promedio}")
         return float(
             round((0.161 * volumen) / (-1 * superficie_total * math.log(1 - (A_total / superficie_total))) * 1000, 1))
 
