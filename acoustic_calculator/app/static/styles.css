@@ -14,7 +14,12 @@ h1, h2 {
     font-size: 1.5rem;
 }
 
-.img-fluid {
-    max-width: 100%;
-    height: auto;
+#resultados h2 {
+    margin-top: 20px;
+}
+
+.input-group-append .btn-danger {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
 }

@@ -11,34 +11,42 @@
         <header class="text-center mb-4">
             <h1 class="display-4">Resultados Acústicos</h1>
         </header>
-        <div class="card mb-4">
-            <div class="card-body">
-                <h2 class="card-title">Modos de Resonancia</h2>
-                <ul class="list-group list-group-flush">
-                    {% for modo in modos_resonancia['modos'] %}
-                    <li class="list-group-item">{{ modo }}</li>
-                    {% endfor %}
-                </ul>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h2 class="card-title">RT60</h2>
+                        <ul class="list-group list-group-flush">
+                        {% for metodo, valor in rt60_values.items() %}
+                            <li class="list-group-item">{{ metodo }}: {{ valor }} ms</li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-body">
-                <h2 class="card-title">RT60</h2>
-                <ul class="list-group list-group-flush">
-                    {% for metodo, valor in rt60_values.items() %}
-                    <li class="list-group-item">{{ metodo }}: {{ valor }} ms</li>
-                    {% endfor %}
-                </ul>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h2 class="card-title">Criterio de Bonello</h2>
+                        <ul class="list-group list-group-flush">
+                            {% for banda, cantidad in bonello_result.items() %}
+                            <li class="list-group-item">{{ banda }} Hz: {{ cantidad }} modos</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-body">
-                <h2 class="card-title">Criterio de Bonello</h2>
-                <ul class="list-group list-group-flush">
-                    {% for banda, cantidad in bonello_result.items() %}
-                    <li class="list-group-item">{{ banda }} Hz: {{ cantidad }} modos</li>
-                    {% endfor %}
-                </ul>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h2 class="card-title">Modos de Resonancia</h2>
+                        <ul class="list-group list-group-flush">
+                            {% for modo in modos_resonancia['modos'] %}
+                            <li class="list-group-item">{{ modo }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="card mb-4">
@@ -47,7 +55,7 @@
                 <img src="data:image/png;base64,{{ plot_url }}" alt="Distribución de Modos" class="img-fluid">
             </div>
         </div>
-        <div class="text-center">
+        <div class="text-center mb-4">
             <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Volver</a>
         </div>
     </div>

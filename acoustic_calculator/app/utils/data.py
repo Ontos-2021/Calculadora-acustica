@@ -1,0 +1,22 @@
+materials = {
+    "Material 1": 0.10,
+    "Material 2": 0.20,
+    "Material 3": 0.30,
+    "Material 4": 0.40,
+    "Material 5": 0.50,
+    "Material 6": 0.60,
+    "Material 7": 0.70,
+    "Material 8": 0.80,
+    "Material 9": 0.90,
+    "Material 10": 1.00,
+    "Material 11": 0.05,
+    "Material 12": 0.15,
+    "Material 13": 0.25,
+    "Material 14": 0.35,
+    "Material 15": 0.45,
+    "Material 16": 0.55,
+    "Material 17": 0.65,
+    "Material 18": 0.75,
+    "Material 19": 0.85,
+    "Material 20": 0.95
+}

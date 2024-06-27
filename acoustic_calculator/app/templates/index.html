@@ -11,7 +11,7 @@
         <header class="text-center mb-4">
             <h1 class="display-4">Calculadora Acústica</h1>
         </header>
-        <form action="{{ url_for('main.results') }}" method="post">
+        <form id="calculo-form">
             <div class="form-group">
                 <label for="largo">Largo (m):</label>
                 <input type="text" class="form-control" id="largo" name="largo">
@@ -24,35 +24,132 @@
                 <label for="alto">Alto (m):</label>
                 <input type="text" class="form-control" id="alto" name="alto">
             </div>
-            <div class="form-group">
-                <label for="alfa_1">Alfa (Frente):</label>
-                <input type="text" class="form-control" id="alfa_1" name="alfa_1">
+
+            <!-- Paneles para cada pared -->
+            <div id="paredes-container">
+                {% for i in range(6) %}
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h3 class="card-title">Pared {{ i + 1 }}</h3>
+                        <div class="form-group">
+                            <label>Materiales y porcentajes:</label>
+                            <div id="materiales-pared-{{ i }}">
+                                <div class="input-group mb-3">
+                                    <select class="form-control material-select">
+                                        {% for material, alpha in materials.items() %}
+                                        <option value="{{ material }}">{{ material }} (α = {{ alpha }})</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="number" class="form-control material-percentage" placeholder="Porcentaje">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-danger remove-material" type="button">&times;</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary add-material" type="button" data-pared="{{ i }}">Agregar Material</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="form-group">
-                <label for="alfa_2">Alfa (Contrafrente):</label>
-                <input type="text" class="form-control" id="alfa_2" name="alfa_2">
-            </div>
-            <div class="form-group">
-                <label for="alfa_3">Alfa (Lateral Izquierdo):</label>
-                <input type="text" class="form-control" id="alfa_3" name="alfa_3">
-            </div>
-            <div class="form-group">
-                <label for="alfa_4">Alfa (Lateral Derecho):</label>
-                <input type="text" class="form-control" id="alfa_4" name="alfa_4">
-            </div>
-            <div class="form-group">
-                <label for="alfa_5">Alfa (Piso):</label>
-                <input type="text" class="form-control" id="alfa_5" name="alfa_5">
-            </div>
-            <div class="form-group">
-                <label for="alfa_6">Alfa (Techo):</label>
-                <input type="text" class="form-control" id="alfa_6" name="alfa_6">
-            </div>
+
             <button type="submit" class="btn btn-primary btn-block">Calcular</button>
         </form>
+
+        <div id="resultados" class="mt-5">
+            <h2>Resultados</h2>
+            <ul class="list-group">
+                <li class="list-group-item"><strong>Superficie Total:</strong> <span id="superficie-total"></span> m²</li>
+                <li class="list-group-item"><strong>Volumen:</strong> <span id="volumen"></span> m³</li>
+                <li class="list-group-item"><strong>RT60 (Sabine):</strong> <span id="rt60-sabine"></span> ms</li>
+                <li class="list-group-item"><strong>RT60 (Eyring):</strong> <span id="rt60-eyring"></span> ms</li>
+                <li class="list-group-item"><strong>RT60 (Millington):</strong> <span id="rt60-millington"></span> ms</li>
+                <li class="list-group-item"><strong>RT60 (Fitz Roy):</strong> <span id="rt60-fitzroy"></span> ms</li>
+                <li class="list-group-item"><strong>Modos de Resonancia:</strong>
+                    <ul id="modos-resonancia"></ul>
+                </li>
+            </ul>
+            <div class="card mt-4">
+                <div class="card-body text-center">
+                    <h2 class="card-title">Distribución de Modos</h2>
+                    <img id="grafico-modos" src="" alt="Distribución de Modos" class="img-fluid">
+                </div>
+            </div>
+        </div>
     </div>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Agregar material a una pared
+            $('.add-material').click(function() {
+                var pared = $(this).data('pared');
+                var materialRow = `
+                <div class="input-group mb-3">
+                    <select class="form-control material-select">
+                        {% for material, alpha in materials.items() %}
+                        <option value="{{ material }}">{{ material }} (α = {{ alpha }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" class="form-control material-percentage" placeholder="Porcentaje">
+                    <div class="input-group-append">
+                        <button class="btn btn-danger remove-material" type="button">&times;</button>
+                    </div>
+                </div>`;
+                $('#materiales-pared-' + pared).append(materialRow);
+            });
+
+            // Eliminar material de una pared
+            $(document).on('click', '.remove-material', function() {
+                $(this).closest('.input-group').remove();
+            });
+
+            // Enviar formulario y calcular resultados
+            $('#calculo-form').submit(function(event) {
+                event.preventDefault();
+                var data = {
+                    largo: $('#largo').val(),
+                    ancho: $('#ancho').val(),
+                    alto: $('#alto').val(),
+                    paredes: []
+                };
+
+                for (var i = 0; i < 6; i++) {
+                    var materiales = {};
+                    $('#materiales-pared-' + i + ' .input-group').each(function() {
+                        var material = $(this).find('.material-select').val();
+                        var porcentaje = $(this).find('.material-percentage').val();
+                        materiales[material] = parseFloat(porcentaje);
+                    });
+                    data.paredes.push({ materiales: materiales });
+                }
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{{ url_for("main.calculate") }}',
+                    data: JSON.stringify(data),
+                    contentType: 'application/json',
+                    success: function(response) {
+                        $('#superficie-total').text(response.superficie_total);
+                        $('#volumen').text(response.volumen);
+                        $('#rt60-sabine').text(response.rt60.Sabine);
+                        $('#rt60-eyring').text(response.rt60.Eyring);
+                        $('#rt60-millington').text(response.rt60.Millington);
+                        $('#rt60-fitzroy').text(response.rt60.FitzRoy);
+
+                        var modosList = $('#modos-resonancia');
+                        modosList.empty();
+                        response.modos_resonancia.modos.forEach(function(modo) {
+                            modosList.append('<li>' + modo.frecuencia + ' Hz (' + modo.combinacion.join(', ') + ')</li>');
+                        });
+
+                        $('#grafico-modos').attr('src', 'data:image/png;base64,' + response.plot_url);
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

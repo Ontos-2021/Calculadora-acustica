@@ -1,36 +1,43 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
-from .utils.calculations import calculate_resonance_modes, calculate_rt60
-from .utils.evaluations import criterio_de_bonello
+from flask import Blueprint, render_template, request, jsonify
+from .utils.data import materials
+from .utils.calculations import calculate_alpha_average, calculate_rt60, calculate_resonance_modes
 from .utils.helpers import create_plot
 
 main = Blueprint('main', __name__)
 
 @main.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', materials=materials)
 
-@main.route('/results', methods=['POST'])
-def results():
-    try:
-        largo = float(request.form.get('largo'))
-        ancho = float(request.form.get('ancho'))
-        alto = float(request.form.get('alto'))
-        alfas = [float(request.form.get(f'alfa_{i}')) for i in range(1, 7)]
+@main.route('/calculate', methods=['POST'])
+def calculate():
+    data = request.json
+    largo = float(data['largo'])
+    ancho = float(data['ancho'])
+    alto = float(data['alto'])
 
-        if largo <= 0 or ancho <= 0 or alto <= 0 or any(alfa < 0 or alfa > 1 for alfa in alfas):
-            flash('Las dimensiones deben ser positivas y los coeficientes de absorción deben estar entre 0 y 1.')
-            return redirect(url_for('main.index'))
+    alfas = []
+    for pared in data['paredes']:
+        alpha_avg = calculate_alpha_average(materials, pared['materiales'])
+        alfas.append(alpha_avg)
 
-        modos_resonancia = calculate_resonance_modes(largo, ancho, alto)
-        rt60_values = calculate_rt60(largo, ancho, alto, alfas)
-        bonello_result = criterio_de_bonello(modos_resonancia['frequencies'])
+    rt60_values = calculate_rt60(largo, ancho, alto, alfas)
+    modos_resonancia = calculate_resonance_modes(largo, ancho, alto)
 
-        frequencies = list(bonello_result.keys())
-        counts = list(bonello_result.values())
-        plot_url = create_plot(frequencies, counts)
+    superficie_total = 2 * (largo * ancho + largo * alto + ancho * alto)
+    volumen = largo * ancho * alto
 
-        return render_template('results.html', modos_resonancia=modos_resonancia, rt60_values=rt60_values,
-                               bonello_result=bonello_result, plot_url=plot_url)
-    except ValueError:
-        flash('Por favor, ingrese valores numéricos válidos.')
-        return redirect(url_for('main.index'))
+    frecuencias = [modo['frecuencia'] for modo in modos_resonancia['modos']]
+    counts = [frecuencias.count(freq) for freq in set(frecuencias)]
+    plot_url = create_plot(list(set(frecuencias)), counts)
+
+    resultados = {
+        'superficie_total': superficie_total,
+        'volumen': volumen,
+        'alfas': alfas,
+        'rt60': rt60_values,
+        'modos_resonancia': modos_resonancia,
+        'plot_url': plot_url
+    }
+
+    return jsonify(resultados)
