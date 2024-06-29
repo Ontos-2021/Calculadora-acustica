@@ -1,8 +1,10 @@
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import io
 import base64
+
 
 def create_plot(frequencies, counts):
     plt.figure(figsize=(10, 6))
