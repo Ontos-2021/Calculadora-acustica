@@ -27,9 +27,62 @@ export async function calculate(
   return res.json();
 }
 
+export async function fetchImpulseResponse(
+  data: {
+    largo: number;
+    ancho: number;
+    alto: number;
+    superficies: { material: string }[];
+    source: [number, number, number];
+    receiver: [number, number, number];
+    max_order?: number;
+  },
+  apiKey?: string,
+): Promise<import("./types").IRResponse> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) headers["X-API-Key"] = apiKey;
+
+  const res = await fetch(`${API_BASE}/api/v1/impulse-response`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ...data, max_order: data.max_order ?? 8 }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, err.detail || "Error al calcular ISM");
+  }
+  return res.json();
+}
+
 export async function fetchMaterials(): Promise<
   Record<string, { alphas: Record<string, number>; label: string }>
 > {
   const res = await fetch(`${API_BASE}/api/v1/materials`);
+  return res.json();
+}
+
+export interface PressureMapRequest {
+  largo: number;
+  ancho: number;
+  alto: number;
+  superficies: { material: string; alphas?: Record<string, number> }[];
+  ear_height?: number;
+  max_freq?: number;
+  grid_size?: number;
+  mode_indices?: [number, number, number];
+}
+
+export async function fetchPressureMap(
+  data: PressureMapRequest,
+): Promise<import("./types").PressureMapResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/pressure-map`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, err.detail || "Error al obtener mapa de presión");
+  }
   return res.json();
 }

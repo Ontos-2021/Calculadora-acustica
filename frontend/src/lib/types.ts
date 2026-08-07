@@ -70,3 +70,36 @@ export interface SurfaceInput {
   material: string;
   alphas?: Record<string, number>;
 }
+
+export interface PressureMapResponse {
+  grid_x: number[];
+  grid_y: number[];
+  pressure: number[][];
+  max_freq: number;
+  ear_height: number;
+  num_modos: number;
+  optimal_listening: { x: number; y: number; score: number };
+}
+
+export interface ListeningPosition {
+  x: number;
+  y: number;
+  score: number;
+}
+
+export interface IRResponse {
+  impulse_response: number[];
+  sample_rate: number;
+  direct_delay_ms: number;
+  parameters: {
+    EDT: number;
+    T20: number;
+    T30: number;
+    C80: number;
+    C50: number;
+    D50: number;
+    Ts: number;
+    ITDG: number | null;
+    flutter_echo: { detected: boolean; frequency: number | null };
+  };
+}

@@ -60,6 +60,45 @@ class CalculateResponse(BaseModel):
     objetivo: Optional[ObjetivoSchema] = None
 
 
+class PressureMapRequest(BaseModel):
+    largo: float = Field(gt=0)
+    ancho: float = Field(gt=0)
+    alto: float = Field(gt=0)
+    superficies: list[SurfaceRequest] = Field(default=[SurfaceRequest()] * 6, min_length=6, max_length=6)
+    ear_height: float = Field(default=1.2, gt=0, le=10)
+    max_freq: float = Field(default=300.0, gt=0, le=1000)
+    grid_size: int = Field(default=100, ge=10, le=200)
+    mode_indices: Optional[list[int]] = None
+
+
+class PressureMapResponse(BaseModel):
+    grid_x: list[float]
+    grid_y: list[float]
+    pressure: list[list[float]]
+    max_freq: float
+    ear_height: float
+    num_modos: int
+    optimal_listening: dict
+
+
+class IRRequest(BaseModel):
+    largo: float = Field(gt=0)
+    ancho: float = Field(gt=0)
+    alto: float = Field(gt=0)
+    superficies: list[SurfaceRequest] = Field(default=[SurfaceRequest()] * 6, min_length=6, max_length=6)
+    source: list[float] = Field(default=[1.0, 1.0, 1.5], min_length=3, max_length=3)
+    receiver: list[float] = Field(default=[4.0, 3.0, 1.2], min_length=3, max_length=3)
+    max_order: int = Field(default=8, ge=1, le=15)
+    sample_rate: int = Field(default=44100, ge=8000, le=96000)
+
+
+class IRResponse(BaseModel):
+    impulse_response: list[float]
+    sample_rate: int
+    direct_delay_ms: float
+    parameters: dict
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "1.0"

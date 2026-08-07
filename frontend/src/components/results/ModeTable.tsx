@@ -1,7 +1,34 @@
+"use client";
+
+import { useState, useMemo, useCallback } from "react";
 import type { Mode } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 
-export function ModeTable({ modos }: { modos: Mode[] }) {
+export function ModeTable({
+  modos,
+  onSelectMode,
+  selectedFreq,
+}: {
+  modos: Mode[];
+  onSelectMode?: (frecuencia: number) => void;
+  selectedFreq?: number | null;
+}) {
+  const [filterType, setFilterType] = useState<string>("all");
+  const [freqMin, setFreqMin] = useState("");
+  const [freqMax, setFreqMax] = useState("");
+
+  const filtered = useMemo(() => {
+    let result = modos;
+    if (filterType !== "all") {
+      result = result.filter((m) => m.tipo === filterType);
+    }
+    const min = parseFloat(freqMin);
+    const max = parseFloat(freqMax);
+    if (!isNaN(min)) result = result.filter((m) => m.frecuencia >= min);
+    if (!isNaN(max)) result = result.filter((m) => m.frecuencia <= max);
+    return result;
+  }, [modos, filterType, freqMin, freqMax]);
+
   if (!modos || modos.length === 0) {
     return (
       <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-400">
@@ -12,11 +39,47 @@ export function ModeTable({ modos }: { modos: Mode[] }) {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Badge variant="success">Axiales (0 dB)</Badge>
         <Badge variant="warning">Tangenciales (−3 dB)</Badge>
         <Badge variant="default">Oblicuos (−6 dB)</Badge>
+        <span className="ml-auto text-xs text-gray-400">
+          {filtered.length} de {modos.length} modos
+        </span>
       </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <select
+          className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+        >
+          <option value="all">Todos</option>
+          <option value="axial">Axiales</option>
+          <option value="tangencial">Tangenciales</option>
+          <option value="oblicuo">Oblicuos</option>
+        </select>
+        <input
+          type="number"
+          placeholder="Frec. min"
+          className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-xs"
+          value={freqMin}
+          onChange={(e) => setFreqMin(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Frec. max"
+          className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-xs"
+          value={freqMax}
+          onChange={(e) => setFreqMax(e.target.value)}
+        />
+        {onSelectMode && (
+          <span className="text-[10px] text-gray-400">
+            Click en una fila para ver el mapa de presión del modo
+          </span>
+        )}
+      </div>
+
       <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
@@ -31,10 +94,13 @@ export function ModeTable({ modos }: { modos: Mode[] }) {
             </tr>
           </thead>
           <tbody>
-            {modos.map((m, i) => (
+            {filtered.map((m, i) => (
               <tr
                 key={i}
-                className="border-b border-gray-100 transition-colors hover:bg-indigo-50/50"
+                onClick={() => onSelectMode?.(m.frecuencia)}
+                className={`cursor-pointer border-b border-gray-100 transition-colors hover:bg-indigo-50/50 ${
+                  selectedFreq === m.frecuencia ? "bg-indigo-100" : ""
+                }`}
               >
                 <td className="px-3 py-1.5 text-gray-500">{i + 1}</td>
                 <td className="px-3 py-1.5 text-gray-700">{m.indices[0]}</td>

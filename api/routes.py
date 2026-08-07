@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Security
+from .dependencies import verify_endpoint_access, check_feature
 
 from acoustic_core.models import Room, Surface, Material, BANDAS_OCTAVA
 from acoustic_core.resonance import calculate_modes, detect_degenerate_modes, detect_overlapping_modes
@@ -9,7 +10,9 @@ from acoustic_core.evaluation import (
 )
 from acoustic_core.design import find_closest_ratio, get_rt60_target
 from acoustic_core.presets import MATERIALES_PRESETS
-from .schemas import CalculateRequest, CalculateResponse, HealthResponse
+from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
+from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
+from .schemas import CalculateRequest, CalculateResponse, HealthResponse, PressureMapRequest, PressureMapResponse, IRRequest, IRResponse
 
 router = APIRouter()
 
@@ -105,3 +108,82 @@ async def design_ratios():
 async def design_targets():
     from acoustic_core.design import RT60_OBJETIVOS
     return RT60_OBJETIVOS
+
+
+@router.post("/pressure-map", response_model=PressureMapResponse)
+async def pressure_map(data: PressureMapRequest):
+    room = _build_room(CalculateRequest(
+        largo=data.largo, ancho=data.ancho, alto=data.alto,
+        superficies=data.superficies,
+    ))
+    modos = calculate_modes(room)
+
+    if data.mode_indices and len(data.mode_indices) == 3:
+        result = compute_single_mode_grid(
+            room, *data.mode_indices,
+            ear_height=data.ear_height, grid_size=data.grid_size,
+        )
+        max_freq_for_label = 0
+        num_modos_for_label = 1
+    else:
+        result = compute_pressure_map(
+            room, modos=modos,
+            max_freq=data.max_freq,
+            ear_height=data.ear_height,
+            grid_size=data.grid_size,
+        )
+        max_freq_for_label = data.max_freq
+        num_modos_for_label = result.get("num_modos", 0)
+
+    optimal = find_optimal_listening(
+        room, modos=modos,
+        max_freq=data.max_freq,
+        ear_height=data.ear_height,
+    )
+
+    return PressureMapResponse(
+        grid_x=result["grid_x"],
+        grid_y=result["grid_y"],
+        pressure=result["pressure"],
+        max_freq=max_freq_for_label,
+        ear_height=data.ear_height,
+        num_modos=num_modos_for_label,
+        optimal_listening=optimal,
+    )
+
+
+@router.post("/impulse-response", response_model=IRResponse)
+async def impulse_response(
+    data: IRRequest,
+    tier: dict = Depends(verify_endpoint_access),
+):
+    if not check_feature(tier, "/api/v1/impulse-response"):
+        raise HTTPException(403, "Requiere licencia PAID (feature: ism)")
+    room = _build_room(CalculateRequest(
+        largo=data.largo, ancho=data.ancho, alto=data.alto,
+        superficies=data.superficies,
+    ))
+
+    source = tuple(data.source)
+    receiver = tuple(data.receiver)
+
+    sources = generate_image_sources(room, source, receiver, max_order=data.max_order)
+    sources = calculate_energy(sources, room, "500")
+
+    ir_data = build_impulse_response(
+        sources, fs=data.sample_rate,
+        duration_s=1.0, room=room,
+    )
+
+    params = calculate_iso3382_parameters(
+        ir_data["impulse_response"],
+        data.sample_rate,
+        ir_data["direct_delay_ms"],
+    )
+
+    return IRResponse(
+        impulse_response=ir_data["impulse_response"],
+        sample_rate=data.sample_rate,
+        direct_delay_ms=ir_data["direct_delay_ms"],
+        parameters=params,
+    )

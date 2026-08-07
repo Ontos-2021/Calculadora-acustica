@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import type { CalculateResponse } from "@/lib/types";
+import type { CalculateResponse, IRResponse } from "@/lib/types";
 
 const styles = StyleSheet.create({
   page: {
@@ -88,9 +88,11 @@ const styles = StyleSheet.create({
 export function PDFReport({
   data,
   room,
+  irParams,
 }: {
   data: CalculateResponse;
   room: { largo: number; ancho: number; alto: number };
+  irParams?: IRResponse["parameters"];
 }) {
   const now = new Date().toLocaleDateString("es-AR");
   return (
@@ -186,6 +188,40 @@ export function PDFReport({
             {data.degeneracion_dimensiones.map((w, i) => (
               <Text key={i}>• {w}</Text>
             ))}
+          </View>
+        )}
+
+        {irParams && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Parámetros ISO 3382-1 (Fuentes Imagen)</Text>
+            <View style={styles.table}>
+              <View style={[styles.tableRow, styles.tableHeader]}>
+                <Text style={styles.cell}>Parámetro</Text>
+                <Text style={styles.cellCenter}>Valor</Text>
+                <Text style={styles.cell}>Unidad</Text>
+              </View>
+              {[
+                ["EDT", irParams.EDT, "s"],
+                ["T20", irParams.T20, "s"],
+                ["T30", irParams.T30, "s"],
+                ["C80", irParams.C80, "dB"],
+                ["C50", irParams.C50, "dB"],
+                ["D50", irParams.D50, "%"],
+                ["Ts", irParams.Ts, "ms"],
+                ["ITDG", irParams.ITDG ?? 0, "ms"],
+              ].map(([label, val, unit]) => (
+                <View key={label as string} style={styles.tableRow}>
+                  <Text style={styles.cell}>{label as string}</Text>
+                  <Text style={styles.cellCenter}>{(val as number).toFixed(2)}</Text>
+                  <Text style={styles.cell}>{unit as string}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.badge}>
+              Flutter echo: {irParams.flutter_echo.detected
+                ? `Detectado ~${irParams.flutter_echo.frequency?.toFixed(0)} Hz`
+                : "No detectado"}
+            </Text>
           </View>
         )}
 
