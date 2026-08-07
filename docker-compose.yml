@@ -1,0 +1,7 @@
+services:
+  app:
+    build: ./acoustic_calculator
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./acoustic_calculator:/app

@@ -1,11 +1,13 @@
 import math
+from typing import List, Dict, Union
+
+Number = Union[int, float]
 
 
-def combine_modes(n):
-    """Genera todas las combinaciones de modos axiales, tangenciales y oblicuos hasta n."""
-    combinaciones = []
+def combine_modes(n: int) -> List[List[int]]:
+    combinaciones: List[List[int]] = []
 
-    def combinar(nx, ny, nz):
+    def combinar(nx: int, ny: int, nz: int) -> None:
         if nz == n:
             if ny == n:
                 if nx == n:
@@ -26,74 +28,72 @@ def combine_modes(n):
     return combinaciones
 
 
-def calculate_resonance_modes(largo, ancho, alto):
-    """Calcula las frecuencias de los modos de resonancia para una sala con las dimensiones dadas."""
+def calculate_resonance_modes(largo: Number, ancho: Number, alto: Number) -> Dict:
     n = 5
     combinaciones = combine_modes(n)
     modos = []
 
-    def frecuencia_modal(combinacion, largo, ancho, alto):
+    def frecuencia_modal(combinacion: List[int], l: Number, a: Number, h: Number) -> float:
         nx, ny, nz = combinacion
-        x = (nx / largo) ** 2
-        y = (ny / ancho) ** 2
-        z = (nz / alto) ** 2
+        x = (nx / l) ** 2
+        y = (ny / a) ** 2
+        z = (nz / h) ** 2
         xyz = (x + y + z) ** 0.5
         return round((343 / 2) * xyz, 1)
 
     for combinacion in combinaciones:
         frecuencia = frecuencia_modal(combinacion, largo, ancho, alto)
-        modo = {'combinacion': combinacion, 'frecuencia': frecuencia}
-        modos.append(modo)
+        modos.append({'combinacion': combinacion, 'frecuencia': frecuencia})
 
-    modos.sort(key=lambda modo: modo['frecuencia'], reverse=False)
+    modos.sort(key=lambda modo: modo['frecuencia'])
     frecuencias = [modo['frecuencia'] for modo in modos]
 
     return {'modos': modos, 'frequencies': frecuencias}
 
 
-def calculate_rt60(largo, ancho, alto, alfas):
-    """Calcula el tiempo de reverberación RT60 usando varias fórmulas."""
+def calculate_rt60(largo: Number, ancho: Number, alto: Number, alfas: List[float]) -> Dict[str, float]:
     volumen = largo * ancho * alto
     superficies = [
-        largo * ancho,  # Techo
+        ancho * alto,   # Frente
+        ancho * alto,   # Contrafrente
+        largo * alto,   # Lateral Izquierdo
+        largo * alto,   # Lateral Derecho
         largo * ancho,  # Piso
-        largo * alto,  # Lateral Derecho
-        largo * alto,  # Lateral Izquierdo
-        ancho * alto,  # Frente
-        ancho * alto  # Contrafrente
+        largo * ancho,  # Techo
     ]
 
     paredes = [{"Superficie": superficies[i], "Alfa": alfas[i]} for i in range(6)]
 
-    def sabine(volumen):
-        A_total = sum([pared["Superficie"] * pared["Alfa"] for pared in paredes])
-        return float(round((0.161 * volumen / A_total) * 1000, 1))
+    def sabine(vol: float) -> float:
+        A_total = sum(p["Superficie"] * p["Alfa"] for p in paredes)
+        return float(round((0.161 * vol / A_total) * 1000, 1))
 
-    def eyring(volumen):
-        A_total = sum([pared["Superficie"] * pared["Alfa"] for pared in paredes])
-        superficie_total = sum([pared["Superficie"] for pared in paredes])
+    def eyring(vol: float) -> float:
+        A_total = sum(p["Superficie"] * p["Alfa"] for p in paredes)
+        S_total = sum(p["Superficie"] for p in paredes)
         return float(
-            round((0.161 * volumen) / (-1 * superficie_total * math.log(1 - (A_total / superficie_total))) * 1000, 1))
+            round((0.161 * vol) / (-S_total * math.log(1 - (A_total / S_total))) * 1000, 1))
 
-    def millington(volumen):
-        A_total = sum([-pared["Superficie"] * math.log(1 - pared["Alfa"]) for pared in paredes])
-        return float(round((0.161 * volumen / A_total) * 1000, 1))
+    def millington(vol: float) -> float:
+        A_total = sum(-p["Superficie"] * math.log(1 - p["Alfa"]) for p in paredes)
+        return float(round((0.161 * vol / A_total) * 1000, 1))
 
-    def fitz_roy(volumen):
-        def T(s, a):
+    def fitz_roy(vol: float) -> float:
+        def T(s: float, a: float) -> float:
             return s / -(math.log(1 - a))
 
-        sx = (paredes[0]["Superficie"] + paredes[1]["Superficie"])
-        sy = (paredes[2]["Superficie"] + paredes[3]["Superficie"])
-        sz = (paredes[4]["Superficie"] + paredes[5]["Superficie"])
-        ax = ((paredes[0]["Alfa"] + paredes[1]["Alfa"]) / 2)
-        ay = ((paredes[2]["Alfa"] + paredes[3]["Alfa"]) / 2)
-        az = ((paredes[4]["Alfa"] + paredes[5]["Alfa"]) / 2)
-        return round(((0.161 * volumen * (T(sx, ax) + T(sy, ay) + T(sz, az))) / sum(superficies) ** 2) * 1000, 1)
+        sx = paredes[0]["Superficie"] + paredes[1]["Superficie"]
+        sy = paredes[2]["Superficie"] + paredes[3]["Superficie"]
+        sz = paredes[4]["Superficie"] + paredes[5]["Superficie"]
+        ax = (paredes[0]["Alfa"] + paredes[1]["Alfa"]) / 2
+        ay = (paredes[2]["Alfa"] + paredes[3]["Alfa"]) / 2
+        az = (paredes[4]["Alfa"] + paredes[5]["Alfa"]) / 2
+        s_total = sum(superficies)
+        return round(((0.161 * vol * (T(sx, ax) + T(sy, ay) + T(sz, az))) / s_total ** 2) * 1000, 1)
 
     return {
         'Sabine': sabine(volumen),
         'Eyring': eyring(volumen),
         'Millington': millington(volumen),
-        'Fitz Roy': fitz_roy(volumen)
+        'Fitz Roy': fitz_roy(volumen),
     }
