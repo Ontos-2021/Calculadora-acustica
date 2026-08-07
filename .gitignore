@@ -4,3 +4,5 @@ __pycache__/
 *.py[cod]
 venv/
 .DS_Store
+.pytest_cache/
+.python-version
