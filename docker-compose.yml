@@ -1,7 +1,15 @@
 services:
-  app:
-    build: .
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
     ports:
-      - "5000:5000"
-    volumes:
-      - .:/app
+      - "8000:8000"
+    environment:
+      - ACOUSTIC_CORS_ORIGINS=["https://tudominio.com"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,4 +1,6 @@
-Flask
-Werkzeug
-matplotlib
+fastapi
+uvicorn
 pydantic
+pydantic-settings
+matplotlib
+python-multipart

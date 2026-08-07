@@ -6,3 +6,6 @@ venv/
 .DS_Store
 .pytest_cache/
 .python-version
+frontend/.next/
+frontend/out/
+frontend/node_modules/

@@ -1,87 +1,85 @@
-import json
+from api.schemas import CalculateRequest
 
 
-class TestRoutes:
-    def test_index_get(self, client):
-        response = client.get('/')
+class TestAPI:
+    def test_health(self, client):
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
-        assert b'Calculadora Ac' in response.data
+        data = response.json()
+        assert data["status"] == "ok"
 
-    def test_results_valid(self, client):
-        response = client.post('/results', data={
-            'largo': 5, 'ancho': 4, 'alto': 3,
-            'material_1': 'Concreto', 'material_2': 'Concreto',
-            'material_3': 'Concreto', 'material_4': 'Concreto',
-            'material_5': 'Concreto', 'material_6': 'Concreto',
-        })
-        assert response.status_code == 200
-        assert b'RT60' in response.data
-        assert b'Schroeder' in response.data
-        assert b'Bonello' in response.data
-
-    def test_results_invalid_dimensions(self, client):
-        response = client.post('/results', data={
-            'largo': -1, 'ancho': 4, 'alto': 3,
-            'material_1': 'Concreto',
-        })
-        assert response.status_code == 302
-
-    def test_results_non_numeric(self, client):
-        response = client.post('/results', data={
-            'largo': 'abc', 'ancho': 4, 'alto': 3,
-            'material_1': 'Concreto',
-        })
-        assert response.status_code == 302
-
-    def test_results_with_uso(self, client):
-        response = client.post('/results', data={
-            'largo': 5, 'ancho': 4, 'alto': 3,
-            'material_1': 'Concreto', 'material_2': 'Concreto',
-            'material_3': 'Concreto', 'material_4': 'Concreto',
-            'material_5': 'Concreto', 'material_6': 'Concreto',
-            'uso': 'home_studio',
-        })
-        assert response.status_code == 200
-        assert b'Objetivo' in response.data
-
-    def test_api_v1_calculate(self, client):
-        response = client.post('/api/v1/calculate', json={
-            'largo': 5, 'ancho': 4, 'alto': 3,
-            'superficies': [
-                {'material': 'Concreto'},
-                {'material': 'Concreto'},
-                {'material': 'Yeso'},
-                {'material': 'Yeso'},
-                {'material': 'Alfombra gruesa'},
-                {'material': 'Panel acústico'},
+    def test_calculate_valid(self, client):
+        response = client.post("/api/v1/calculate", json={
+            "largo": 5, "ancho": 4, "alto": 3,
+            "superficies": [
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
             ],
         })
         assert response.status_code == 200
-        data = response.get_json()
-        assert 'rt60_bandas' in data
-        assert 'modos' in data
-        assert 'bonello' in data
-        assert 'f_schroeder' in data
-        assert 'proporciones' in data
+        data = response.json()
+        assert "modos" in data
+        assert "rt60_bandas" in data
+        assert "bonello" in data
+        assert "f_schroeder" in data
+        assert "proporciones" in data
+        assert len(data["modos"]) == 124
 
-    def test_api_v1_invalid(self, client):
-        response = client.post('/api/v1/calculate', json={'largo': -1})
-        assert response.status_code == 400
+    def test_calculate_with_uso(self, client):
+        response = client.post("/api/v1/calculate", json={
+            "largo": 5, "ancho": 4, "alto": 3,
+            "uso": "home_studio",
+            "superficies": [{"material": "Concreto"}] * 6,
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["objetivo"] is not None
+        assert "diferencias" in data["objetivo"]
 
-    def test_api_v1_no_json(self, client):
-        response = client.post('/api/v1/calculate', data='not json')
-        assert response.status_code == 400
-
-    def test_api_v1_custom_alphas(self, client):
-        response = client.post('/api/v1/calculate', json={
-            'largo': 5, 'ancho': 4, 'alto': 3,
-            'superficies': [
-                {'material': 'Concreto', 'alphas': {'125': 0.5, '500': 0.3}},
-                {'material': 'Concreto'},
-                {'material': 'Concreto'},
-                {'material': 'Concreto'},
-                {'material': 'Concreto'},
-                {'material': 'Concreto'},
+    def test_calculate_custom_alphas(self, client):
+        response = client.post("/api/v1/calculate", json={
+            "largo": 5, "ancho": 4, "alto": 3,
+            "superficies": [
+                {"material": "Concreto", "alphas": {"125": 0.5, "500": 0.3}},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
+                {"material": "Concreto"},
             ],
         })
         assert response.status_code == 200
+
+    def test_invalid_dimensions(self, client):
+        response = client.post("/api/v1/calculate", json={
+            "largo": -1, "ancho": 4, "alto": 3,
+            "superficies": [{"material": "Concreto"}] * 6,
+        })
+        assert response.status_code == 422
+
+    def test_invalid_no_data(self, client):
+        response = client.post("/api/v1/calculate", json={})
+        assert response.status_code == 422
+
+    def test_materials_endpoint(self, client):
+        response = client.get("/api/v1/materials")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 5
+        assert "Concreto" in data
+
+    def test_ratios_endpoint(self, client):
+        response = client.get("/api/v1/design/ratios")
+        assert response.status_code == 200
+        data = response.json()
+        assert "Golden Ratio" in data
+
+    def test_targets_endpoint(self, client):
+        response = client.get("/api/v1/design/targets")
+        assert response.status_code == 200
+        data = response.json()
+        assert "home_studio" in data

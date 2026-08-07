@@ -1,4 +1,5 @@
 import pytest
+from fastapi.testclient import TestClient
 from acoustic_core.models import Material, Surface, Room
 from acoustic_core.presets import MATERIALES_PRESETS
 
@@ -38,12 +39,6 @@ def sala_cubica(mat_concreto):
 
 
 @pytest.fixture
-def app():
-    from app import create_app
-    app = create_app()
-    return app
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
+def client():
+    from api.main import app
+    return TestClient(app)
