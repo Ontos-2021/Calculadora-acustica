@@ -10,8 +10,11 @@ FEATURE_MAP = {
     "/api/v1/calculate": ["basic"],
     "/api/v1/pressure-map": ["basic", "pressure_map"],
     "/api/v1/materials": ["basic"],
+    "/api/v1/materials/categories": ["basic"],
     "/api/v1/design/ratios": ["basic"],
     "/api/v1/design/targets": ["basic"],
+    "/api/v1/design/air-absorption": ["basic"],
+    "/api/v1/design/audience-absorption": ["basic"],
     "/api/v1/impulse-response": ["ism"],
     "/api/v1/health": ["basic"],
 }

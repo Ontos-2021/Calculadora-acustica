@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { CalculateRequest, SurfaceInput } from "@/lib/types";
+import type { CalculateRequest, SurfaceInput, MaterialInfo } from "@/lib/types";
+import { fetchMaterials, fetchMaterialCategories } from "@/lib/api";
 
 const BANDAS = ["125", "250", "500", "1000", "2000", "4000"];
 const SUP_NOMBRES = ["Frente", "Contrafrente", "Lat. Izquierdo", "Lat. Derecho", "Piso", "Techo"];
-
-const MATERIAL_PRESETS = [
-  "Concreto", "Madera", "Yeso", "Vidrio",
-  "Alfombra gruesa", "Cortina pesada", "Panel acústico", "Espuma acústica",
-];
 
 const USOS: Record<string, string> = {
   home_studio: "Home Studio / Grabación",
@@ -23,6 +19,14 @@ const USOS: Record<string, string> = {
   restaurante: "Restaurante",
 };
 
+const ISO_COLORS: Record<string, string> = {
+  A: "bg-green-100 text-green-800",
+  B: "bg-blue-100 text-blue-800",
+  C: "bg-yellow-100 text-yellow-800",
+  D: "bg-orange-100 text-orange-800",
+  E: "bg-red-100 text-red-800",
+};
+
 interface FormData {
   largo: string;
   ancho: string;
@@ -32,10 +36,25 @@ interface FormData {
   alphas: Record<string, Record<string, string>>;
 }
 
+function MaterialBadge({ alpha_w, iso_class }: { alpha_w: number | null; iso_class: string }) {
+  if (iso_class === "No clasificado" || !iso_class) return null;
+  const color = ISO_COLORS[iso_class] || "bg-gray-100 text-gray-800";
+  return (
+    <span className={`ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
+      {iso_class} (α_w={alpha_w?.toFixed(2)})
+    </span>
+  );
+}
+
 export function RoomForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<MaterialInfo[]>([]);
+  const [categories, setCategories] = useState<Record<string, string[]>>({});
+  const [materialsLoading, setMaterialsLoading] = useState(true);
+  const [filter, setFilter] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [form, setForm] = useState<FormData>({
     largo: "",
     ancho: "",
@@ -45,6 +64,36 @@ export function RoomForm() {
     alphas: {},
   });
   const [showAlpha, setShowAlpha] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [mats, cats] = await Promise.all([
+          fetchMaterials(),
+          fetchMaterialCategories(),
+        ]);
+        setMaterials(mats);
+        setCategories(cats);
+      } catch {
+        setMaterials([]);
+        setCategories({});
+      } finally {
+        setMaterialsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const filteredMaterials = materials.filter((m) => {
+    if (filter && !m.nombre.toLowerCase().includes(filter.toLowerCase())) return false;
+    if (selectedCategory && m.categoria !== selectedCategory) return false;
+    return true;
+  });
+
+  const grouped = filteredMaterials.reduce<Record<string, MaterialInfo[]>>((acc, m) => {
+    (acc[m.categoria] ||= []).push(m);
+    return acc;
+  }, {});
 
   const updateMaterial = useCallback((i: number, val: string) => {
     setForm((f) => {
@@ -137,6 +186,25 @@ export function RoomForm() {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Materiales por superficie
         </h3>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <input
+            type="text"
+            placeholder="Filtrar materiales..."
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <select
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          >
+            <option value="">Todas las categorías</option>
+            {Object.keys(categories).map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SUP_NOMBRES.map((nombre, i) => (
             <div key={i}>
@@ -148,12 +216,26 @@ export function RoomForm() {
                 value={form.materiales[i]}
                 onChange={(e) => updateMaterial(i, e.target.value)}
               >
-                {MATERIAL_PRESETS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
+                {materialsLoading ? (
+                  <option>Cargando...</option>
+                ) : (
+                  Object.entries(grouped).map(([cat, mats]) => (
+                    <optgroup key={cat} label={cat}>
+                      {mats.map((m) => (
+                        <option key={m.nombre} value={m.nombre}>
+                          {m.nombre}{m.iso_class && m.iso_class !== "No clasificado" ? ` [${m.iso_class}]` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                )}
               </select>
+              {form.materiales[i] && (
+                <MaterialBadge
+                  alpha_w={materials.find((m) => m.nombre === form.materiales[i])?.alpha_w ?? null}
+                  iso_class={materials.find((m) => m.nombre === form.materiales[i])?.iso_class ?? ""}
+                />
+              )}
               <button
                 type="button"
                 className="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
@@ -208,7 +290,7 @@ export function RoomForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || materialsLoading}
         className="w-full rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.01] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? "Calculando..." : "Calcular"}

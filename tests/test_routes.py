@@ -70,7 +70,7 @@ class TestAPI:
         assert response.status_code == 200
         data = response.json()
         assert len(data) >= 5
-        assert "Concreto" in data
+        assert any(m["nombre"] == "Concreto" for m in data)
 
     def test_ratios_endpoint(self, client):
         response = client.get("/api/v1/design/ratios")
@@ -83,3 +83,47 @@ class TestAPI:
         assert response.status_code == 200
         data = response.json()
         assert "home_studio" in data
+
+    def test_materials_categories(self, client):
+        response = client.get("/api/v1/materials/categories")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, dict)
+        assert len(data) >= 8
+
+    def test_material_detail(self, client):
+        response = client.get("/api/v1/materials/Concreto")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["nombre"] == "Concreto"
+        assert "alphas" in data
+        assert "alpha_w" in data
+        assert "categoria" in data
+
+    def test_material_detail_not_found(self, client):
+        response = client.get("/api/v1/materials/NoExiste")
+        assert response.status_code == 404
+
+    def test_materials_search_by_category(self, client):
+        response = client.get("/api/v1/materials?categoria=Espumas")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 2
+
+    def test_air_absorption(self, client):
+        response = client.post("/api/v1/design/air-absorption", json={
+            "humidity": 50, "temp_celsius": 20,
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert "coeficientes" in data
+        assert len(data["coeficientes"]) == 6
+
+    def test_audience_absorption(self, client):
+        response = client.post("/api/v1/design/audience-absorption", json={
+            "num_people": 10,
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 6
+        assert all(v > 0 for v in data.values())

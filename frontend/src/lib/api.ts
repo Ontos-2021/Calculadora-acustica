@@ -1,4 +1,4 @@
-import type { CalculateRequest, CalculateResponse } from "./types";
+import type { CalculateRequest, CalculateResponse, MaterialInfo } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -54,10 +54,21 @@ export async function fetchImpulseResponse(
   return res.json();
 }
 
-export async function fetchMaterials(): Promise<
-  Record<string, { alphas: Record<string, number>; label: string }>
-> {
+export async function fetchMaterials(): Promise<MaterialInfo[]> {
   const res = await fetch(`${API_BASE}/api/v1/materials`);
+  if (!res.ok) throw new ApiError(res.status, "Error al cargar materiales");
+  return res.json();
+}
+
+export async function fetchMaterialCategories(): Promise<Record<string, string[]>> {
+  const res = await fetch(`${API_BASE}/api/v1/materials/categories`);
+  if (!res.ok) throw new ApiError(res.status, "Error al cargar categorías");
+  return res.json();
+}
+
+export async function fetchMaterialDetail(name: string): Promise<MaterialInfo> {
+  const res = await fetch(`${API_BASE}/api/v1/materials/${encodeURIComponent(name)}`);
+  if (!res.ok) throw new ApiError(res.status, `Material '${name}' no encontrado`);
   return res.json();
 }
 

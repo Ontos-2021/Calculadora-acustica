@@ -87,6 +87,14 @@ export interface ListeningPosition {
   score: number;
 }
 
+export interface MaterialInfo {
+  nombre: string;
+  categoria: string;
+  alphas: Record<string, number>;
+  alpha_w: number | null;
+  iso_class: string;
+}
+
 export interface IRResponse {
   impulse_response: number[];
   sample_rate: number;

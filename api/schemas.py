@@ -103,3 +103,37 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "1.0"
     core_version: str = "0.1"
+
+
+class MaterialResponse(BaseModel):
+    nombre: str
+    categoria: str
+    alphas: dict[str, float]
+    alpha_w: Optional[float] = None
+    iso_class: str
+
+
+class MaterialSearchRequest(BaseModel):
+    query: str = ""
+    categoria: str = ""
+    min_alpha_w: float = Field(default=0.0, ge=0, le=1)
+    max_alpha_w: float = Field(default=1.0, ge=0, le=1)
+    iso_class: str = ""
+
+
+class AirAbsorptionRequest(BaseModel):
+    humidity: float = Field(default=50.0, ge=0, le=100)
+    temp_celsius: float = Field(default=20.0, ge=-10, le=50)
+
+
+class AirAbsorptionResponse(BaseModel):
+    coeficientes: dict[str, float]
+    humidity: float
+    temp_celsius: float
+
+
+class AudienceAbsorptionRequest(BaseModel):
+    num_people: int = Field(default=0, ge=0)
+    seated: bool = True
+    upholstered: bool = True
+    occupied: float = Field(default=0.85, ge=0, le=1)

@@ -16,6 +16,9 @@ class Material(BaseModel):
     nombre: str
     alphas: dict[str, float] = Field(default_factory=dict)
     alpha_unico: Optional[float] = None
+    categoria: str = ""
+    alpha_w: Optional[float] = None
+    iso_class: str = ""
 
     @model_validator(mode='after')
     def validar_alphas(self):

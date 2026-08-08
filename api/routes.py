@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Security
+from fastapi import APIRouter, HTTPException, Depends, Security, Query
 from .dependencies import verify_endpoint_access, check_feature
 
 from acoustic_core.models import Room, Surface, Material, BANDAS_OCTAVA
@@ -9,10 +9,16 @@ from acoustic_core.evaluation import (
     evaluate_bonello, find_degenerate_dimensions, get_mode_distribution,
 )
 from acoustic_core.design import find_closest_ratio, get_rt60_target
-from acoustic_core.presets import MATERIALES_PRESETS
+from acoustic_core.presets import MATERIALES_PRESETS, CATEGORIAS, search_materials, calculate_air_absorption, AIR_ABSORPTION_DEFAULT, AudienceConfig, calculate_audience_absorption
 from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
 from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
-from .schemas import CalculateRequest, CalculateResponse, HealthResponse, PressureMapRequest, PressureMapResponse, IRRequest, IRResponse
+from .schemas import (
+    CalculateRequest, CalculateResponse, HealthResponse,
+    PressureMapRequest, PressureMapResponse, IRRequest, IRResponse,
+    MaterialResponse, MaterialSearchRequest,
+    AirAbsorptionRequest, AirAbsorptionResponse,
+    AudienceAbsorptionRequest,
+)
 
 router = APIRouter()
 
@@ -90,12 +96,41 @@ async def calculate(data: CalculateRequest):
     return CalculateResponse(**datos)
 
 
+def _material_to_response(mat: Material) -> MaterialResponse:
+    return MaterialResponse(
+        nombre=mat.nombre,
+        categoria=mat.categoria,
+        alphas=mat.alphas,
+        alpha_w=mat.alpha_w,
+        iso_class=mat.iso_class,
+    )
+
+
 @router.get("/materials")
-async def list_materials():
-    result = {}
-    for name, mat in MATERIALES_PRESETS.items():
-        result[name] = {"alphas": mat.alphas, "label": name}
-    return result
+async def list_materials(
+    categoria: str = Query(default=""),
+    min_alpha_w: float = Query(default=0.0, ge=0, le=1),
+    max_alpha_w: float = Query(default=1.0, ge=0, le=1),
+    iso_class: str = Query(default=""),
+    query: str = Query(default=""),
+):
+    if query or categoria or min_alpha_w > 0 or max_alpha_w < 1 or iso_class:
+        results = search_materials(query, categoria, min_alpha_w, max_alpha_w, iso_class)
+        return [_material_to_response(m) for m in results]
+    return [_material_to_response(m) for m in MATERIALES_PRESETS.values()]
+
+
+@router.get("/materials/categories")
+async def material_categories():
+    return CATEGORIAS
+
+
+@router.get("/materials/{name}")
+async def material_detail(name: str):
+    mat = MATERIALES_PRESETS.get(name)
+    if not mat:
+        raise HTTPException(404, f"Material '{name}' no encontrado")
+    return _material_to_response(mat)
 
 
 @router.get("/design/ratios")
@@ -108,6 +143,29 @@ async def design_ratios():
 async def design_targets():
     from acoustic_core.design import RT60_OBJETIVOS
     return RT60_OBJETIVOS
+
+
+@router.post("/design/air-absorption", response_model=AirAbsorptionResponse)
+async def air_absorption(data: AirAbsorptionRequest):
+    coeficientes = {}
+    for b in BANDAS_OCTAVA:
+        coeficientes[b] = round(calculate_air_absorption(float(b), data.humidity, data.temp_celsius), 8)
+    return AirAbsorptionResponse(
+        coeficientes=coeficientes,
+        humidity=data.humidity,
+        temp_celsius=data.temp_celsius,
+    )
+
+
+@router.post("/design/audience-absorption")
+async def audience_absorption(data: AudienceAbsorptionRequest):
+    config = AudienceConfig(
+        num_people=data.num_people,
+        seated=data.seated,
+        upholstered=data.upholstered,
+        occupied=data.occupied,
+    )
+    return calculate_audience_absorption(config)
 
 
 @router.post("/pressure-map", response_model=PressureMapResponse)
