@@ -16,6 +16,11 @@ from acoustic_core.diffusers import qrd_well_depths, skyline_well_depths, estima
 from acoustic_core.isolation import single_panel_tl, double_panel_tl, calculate_stc, calculate_rw, evaluate_nc, get_nc_target, msr_resonance, critical_frequency
 from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
 from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
+from acoustic_core.measurement import generate_ess, ess_deconvolution, compute_waterfall, calibrate_alpha, generate_wav_bytes
+from acoustic_core.finite_impedance import axial_modes_finite_impedance, room_modes_finite_impedance
+from acoustic_core.fem2d import compute_2d_modes
+from acoustic_core.ray_tracing import trace_rays
+from acoustic_core.hybrid import hybrid_analysis
 from .schemas import (
     CalculateRequest, CalculateResponse, HealthResponse,
     PressureMapRequest, PressureMapResponse, IRRequest, IRResponse,
@@ -27,6 +32,8 @@ from .schemas import (
     PorousAbsorberRequest, HelmholtzRequest, MembraneRequest, AbsorberResponse,
     QRDRequest, SkylineRequest,
     SinglePanelTLRequest, DoublePanelTLRequest, NCEvaluationRequest,
+    ESSRequest, ESSDeconvRequest, WaterfallRequest, CalibrateRequest,
+    FiniteImpedanceRequest, FEM2DRequest, RayTraceRequest, HybridRequest,
 )
 
 router = APIRouter()
@@ -366,3 +373,78 @@ async def impulse_response(
         direct_delay_ms=ir_data["direct_delay_ms"],
         parameters=params,
     )
+
+
+@router.post("/measurement/ess")
+async def generate_ess_endpoint(data: ESSRequest):
+    signal = generate_ess(data.f1_hz, data.f2_hz, data.duration_s, data.sample_rate)
+    return {
+        "signal": signal[:5000],
+        "sample_rate": data.sample_rate,
+        "duration_s": data.duration_s,
+        "f1_hz": data.f1_hz,
+        "f2_hz": data.f2_hz,
+        "total_samples": len(signal),
+    }
+
+
+@router.post("/measurement/deconvolve")
+async def deconvolve_ess(data: ESSDeconvRequest):
+    ir = ess_deconvolution(data.response, data.ess, data.sample_rate)
+    return {"impulse_response": ir, "sample_rate": data.sample_rate}
+
+
+@router.post("/measurement/waterfall")
+async def waterfall_analysis(data: WaterfallRequest):
+    result = compute_waterfall(data.ir, data.sample_rate, data.duration_s)
+    return result
+
+
+@router.post("/measurement/calibrate")
+async def calibrate_model(data: CalibrateRequest):
+    room = _build_room(CalculateRequest(
+        largo=data.largo, ancho=data.ancho, alto=data.alto,
+        superficies=data.superficies,
+    ))
+    result = calibrate_alpha(room, data.measured_rt60)
+    return {"calibrated_alphas": result, "measured_rt60": data.measured_rt60}
+
+
+@router.post("/numerical/finite-impedance")
+async def finite_impedance_analysis(data: FiniteImpedanceRequest):
+    axial = axial_modes_finite_impedance(data.L_m, data.Z_wall, max_modes=data.max_order)
+    room = room_modes_finite_impedance(data.L_m, data.W_m, data.H_m, data.Z_wall, max_order=data.max_order)
+    return {"axial_modes": axial, "room_modes": room, "Z_wall": data.Z_wall}
+
+
+@router.post("/numerical/fem2d")
+async def fem2d_analysis(data: FEM2DRequest):
+    exclude = []
+    if data.exclude_region:
+        parts = data.exclude_region.split(",")
+        if len(parts) == 4:
+            exclude.append({"x0": float(parts[0]), "y0": float(parts[1]),
+                            "x1": float(parts[2]), "y1": float(parts[3])})
+    modes = compute_2d_modes(data.width, data.height, data.grid_nx, data.grid_ny, data.num_modes, exclude)
+    return {"modes": modes, "width": data.width, "height": data.height}
+
+
+@router.post("/numerical/ray-tracing")
+async def ray_tracing_analysis(data: RayTraceRequest):
+    room = _build_room(CalculateRequest(
+        largo=data.largo, ancho=data.ancho, alto=data.alto,
+        superficies=data.superficies,
+    ))
+    result = trace_rays(room, tuple(data.source), tuple(data.receiver),
+                        num_rays=data.num_rays, max_reflections=data.max_reflections)
+    return result
+
+
+@router.post("/numerical/hybrid")
+async def hybrid_analysis_endpoint(data: HybridRequest):
+    room = _build_room(CalculateRequest(
+        largo=data.largo, ancho=data.ancho, alto=data.alto,
+        superficies=data.superficies,
+    ))
+    result = hybrid_analysis(room, tuple(data.source), tuple(data.receiver), num_rays=data.num_rays)
+    return result

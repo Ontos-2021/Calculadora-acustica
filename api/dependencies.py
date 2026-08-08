@@ -27,6 +27,14 @@ FEATURE_MAP = {
     "/api/v1/design/isolation/nc-targets": ["basic"],
     "/api/v1/impulse-response": ["ism"],
     "/api/v1/health": ["basic"],
+    "/api/v1/measurement/ess": ["basic"],
+    "/api/v1/measurement/deconvolve": ["basic"],
+    "/api/v1/measurement/waterfall": ["basic"],
+    "/api/v1/measurement/calibrate": ["basic"],
+    "/api/v1/numerical/finite-impedance": ["basic"],
+    "/api/v1/numerical/fem2d": ["basic"],
+    "/api/v1/numerical/ray-tracing": ["basic"],
+    "/api/v1/numerical/hybrid": ["basic"],
 }
 
 

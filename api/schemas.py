@@ -225,3 +225,68 @@ class InverseDesignResponse(BaseModel):
     missing_absorption: dict[str, float]
     material_suggestions: list[MaterialSuggestion]
     placement_suggestions: list[PlacementSuggestion] = []
+
+
+class ESSRequest(BaseModel):
+    f1_hz: float = Field(default=20, ge=1, le=1000)
+    f2_hz: float = Field(default=20000, ge=100, le=48000)
+    duration_s: float = Field(default=5, ge=0.1, le=30)
+    sample_rate: int = Field(default=44100, ge=8000, le=96000)
+
+
+class ESSDeconvRequest(BaseModel):
+    response: list[float]
+    ess: list[float]
+    sample_rate: int = Field(default=44100, ge=8000, le=96000)
+
+
+class WaterfallRequest(BaseModel):
+    ir: list[float]
+    sample_rate: int = Field(default=44100, ge=8000, le=96000)
+    duration_s: float = Field(default=1.0, ge=0.1, le=5)
+
+
+class CalibrateRequest(BaseModel):
+    largo: float = Field(gt=0)
+    ancho: float = Field(gt=0)
+    alto: float = Field(gt=0)
+    superficies: list[SurfaceRequest] = Field(default=[SurfaceRequest()] * 6, min_length=6, max_length=6)
+    measured_rt60: dict[str, float]
+
+
+class FiniteImpedanceRequest(BaseModel):
+    L_m: float = Field(default=5, gt=0, le=50)
+    W_m: float = Field(default=4, gt=0, le=50)
+    H_m: float = Field(default=3, gt=0, le=50)
+    Z_wall: float = Field(default=10000, gt=0, le=1e8)
+    max_order: int = Field(default=3, ge=1, le=5)
+
+
+class FEM2DRequest(BaseModel):
+    width: float = Field(default=5, gt=0, le=50)
+    height: float = Field(default=4, gt=0, le=50)
+    grid_nx: int = Field(default=20, ge=5, le=50)
+    grid_ny: int = Field(default=20, ge=5, le=50)
+    num_modes: int = Field(default=5, ge=1, le=20)
+    exclude_region: str = ""
+
+
+class RayTraceRequest(BaseModel):
+    largo: float = Field(gt=0)
+    ancho: float = Field(gt=0)
+    alto: float = Field(gt=0)
+    superficies: list[SurfaceRequest] = Field(default=[SurfaceRequest()] * 6, min_length=6, max_length=6)
+    source: list[float] = Field(default=[1, 1, 1.5], min_length=3, max_length=3)
+    receiver: list[float] = Field(default=[4, 3, 1.2], min_length=3, max_length=3)
+    num_rays: int = Field(default=300, ge=50, le=5000)
+    max_reflections: int = Field(default=30, ge=5, le=100)
+
+
+class HybridRequest(BaseModel):
+    largo: float = Field(gt=0)
+    ancho: float = Field(gt=0)
+    alto: float = Field(gt=0)
+    superficies: list[SurfaceRequest] = Field(default=[SurfaceRequest()] * 6, min_length=6, max_length=6)
+    source: list[float] = Field(default=[1, 1, 1.5], min_length=3, max_length=3)
+    receiver: list[float] = Field(default=[4, 3, 1.2], min_length=3, max_length=3)
+    num_rays: int = Field(default=300, ge=50, le=5000)

@@ -28,6 +28,8 @@ import { InverseDesign } from "@/components/results/InverseDesign";
 import { AbsorberCalculators } from "@/components/results/AbsorberCalculators";
 import { DiffuserCalculators } from "@/components/results/DiffuserCalculators";
 import { IsolationCalculators } from "@/components/results/IsolationCalculators";
+import { MeasurementTools } from "@/components/results/MeasurementTools";
+import { NumericalMethods } from "@/components/results/NumericalMethods";
 
 export default function ResultsContent() {
   const searchParams = useSearchParams();
@@ -235,6 +237,10 @@ export default function ResultsContent() {
       <DiffuserCalculators />
 
       <IsolationCalculators />
+
+      <MeasurementTools />
+
+      <NumericalMethods />
 
       <Card>
         <CardTitle>
