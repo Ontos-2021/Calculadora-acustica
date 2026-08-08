@@ -43,10 +43,11 @@ export function ListeningPositionSelector({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-medium text-gray-500">
+          <label htmlFor="escucha-x" className="block text-xs font-medium text-gray-500">
             X: {x.toFixed(2)} m
           </label>
           <input
+            id="escucha-x"
             type="range"
             min={0.1}
             max={largo - 0.1}
@@ -57,10 +58,11 @@ export function ListeningPositionSelector({
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500">
+          <label htmlFor="escucha-y" className="block text-xs font-medium text-gray-500">
             Y: {y.toFixed(2)} m
           </label>
           <input
+            id="escucha-y"
             type="range"
             min={0.1}
             max={ancho - 0.1}

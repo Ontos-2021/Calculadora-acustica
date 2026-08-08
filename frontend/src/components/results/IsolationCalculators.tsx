@@ -85,14 +85,14 @@ export function IsolationCalculators() {
       {tab === "single" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Masa (kg/m²)</label>
-            <input type="number" min="1" max="10000" value={single.mass}
+            <label htmlFor="aisl-simple-masa" className="block text-xs text-gray-500">Masa (kg/m²)</label>
+            <input id="aisl-simple-masa" type="number" min="1" max="10000" value={single.mass}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setSingle(s => ({ ...s, mass: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Espesor (m)</label>
-            <input type="number" step="0.001" min="0.001" max="1" value={single.thick}
+            <label htmlFor="aisl-simple-espesor" className="block text-xs text-gray-500">Espesor (m)</label>
+            <input id="aisl-simple-espesor" type="number" step="0.001" min="0.001" max="1" value={single.thick}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setSingle(s => ({ ...s, thick: Number(e.target.value) }))} />
           </div>
@@ -102,26 +102,26 @@ export function IsolationCalculators() {
       {tab === "double" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Masa hoja 1 (kg/m²)</label>
-            <input type="number" min="1" max="10000" value={dbl.m1}
+            <label htmlFor="aisl-doble-m1" className="block text-xs text-gray-500">Masa hoja 1 (kg/m²)</label>
+            <input id="aisl-doble-m1" type="number" min="1" max="10000" value={dbl.m1}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setDbl(d => ({ ...d, m1: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Masa hoja 2 (kg/m²)</label>
-            <input type="number" min="1" max="10000" value={dbl.m2}
+            <label htmlFor="aisl-doble-m2" className="block text-xs text-gray-500">Masa hoja 2 (kg/m²)</label>
+            <input id="aisl-doble-m2" type="number" min="1" max="10000" value={dbl.m2}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setDbl(d => ({ ...d, m2: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Cámara (m)</label>
-            <input type="number" step="0.01" min="0.01" max="2" value={dbl.gap}
+            <label htmlFor="aisl-doble-camara" className="block text-xs text-gray-500">Cámara (m)</label>
+            <input id="aisl-doble-camara" type="number" step="0.01" min="0.01" max="2" value={dbl.gap}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setDbl(d => ({ ...d, gap: Number(e.target.value) }))} />
           </div>
           <div className="flex items-end pb-1">
             <label className="flex items-center gap-2 text-xs text-gray-500">
-              <input type="checkbox" checked={dbl.stud}
+              <input id="aisl-doble-stud" type="checkbox" checked={dbl.stud}
                 onChange={(e) => setDbl(d => ({ ...d, stud: e.target.checked }))} />
               Con montantes (penalización)
             </label>
@@ -131,14 +131,17 @@ export function IsolationCalculators() {
 
       {tab === "nc" && (
         <div className="mb-4 grid grid-cols-3 gap-2">
-          {BANDAS.map((b) => (
+          {BANDAS.map((b) => {
+            const ncId = `aisl-nc-${b}`;
+            return (
             <div key={b}>
-              <label className="block text-xs text-gray-500">{b} Hz (SPL)</label>
-              <input type="number" min="0" max="120" value={ncSpl[b]}
+              <label htmlFor={ncId} className="block text-xs text-gray-500">{b} Hz (SPL)</label>
+              <input id={ncId} type="number" min="0" max="120" value={ncSpl[b]}
                 className="mt-1 w-full rounded border px-2 py-1 text-sm"
                 onChange={(e) => setNcSpl(s => ({ ...s, [b]: e.target.value }))} />
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -87,20 +87,20 @@ export function NumericalMethods() {
 
       <div className="mb-4 grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-500">Largo (m)</label>
-          <input type="number" step="0.1" min="0.1" max="50" value={imp.L}
+          <label htmlFor="num-largo" className="block text-xs text-gray-500">Largo (m)</label>
+          <input id="num-largo" type="number" step="0.1" min="0.1" max="50" value={imp.L}
             className="mt-1 w-full rounded border px-2 py-1 text-sm"
             onChange={(e) => setImp(s => ({ ...s, L: Number(e.target.value) }))} />
         </div>
         <div>
-          <label className="block text-xs text-gray-500">Ancho (m)</label>
-          <input type="number" step="0.1" min="0.1" max="50" value={imp.W}
+          <label htmlFor="num-ancho" className="block text-xs text-gray-500">Ancho (m)</label>
+          <input id="num-ancho" type="number" step="0.1" min="0.1" max="50" value={imp.W}
             className="mt-1 w-full rounded border px-2 py-1 text-sm"
             onChange={(e) => setImp(s => ({ ...s, W: Number(e.target.value) }))} />
         </div>
         <div>
-          <label className="block text-xs text-gray-500">Alto (m)</label>
-          <input type="number" step="0.1" min="0.1" max="50" value={imp.H}
+          <label htmlFor="num-alto" className="block text-xs text-gray-500">Alto (m)</label>
+          <input id="num-alto" type="number" step="0.1" min="0.1" max="50" value={imp.H}
             className="mt-1 w-full rounded border px-2 py-1 text-sm"
             onChange={(e) => setImp(s => ({ ...s, H: Number(e.target.value) }))} />
         </div>
@@ -109,8 +109,8 @@ export function NumericalMethods() {
       {tab === "impedance" && (
         <div className="mb-4">
           <div>
-            <label className="block text-xs text-gray-500">Impedancia de pared (rayl)</label>
-            <input type="number" min="1" max="1e8" value={imp.Z}
+            <label htmlFor="num-imp-z" className="block text-xs text-gray-500">Impedancia de pared (rayl)</label>
+            <input id="num-imp-z" type="number" min="1" max="1e8" value={imp.Z}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setImp(s => ({ ...s, Z: Number(e.target.value) }))} />
           </div>
@@ -120,26 +120,26 @@ export function NumericalMethods() {
       {tab === "fem2d" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Grid NX</label>
-            <input type="number" min="5" max="50" value={fem.nx}
+            <label htmlFor="num-fem-nx" className="block text-xs text-gray-500">Grid NX</label>
+            <input id="num-fem-nx" type="number" min="5" max="50" value={fem.nx}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setFem(s => ({ ...s, nx: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Grid NY</label>
-            <input type="number" min="5" max="50" value={fem.ny}
+            <label htmlFor="num-fem-ny" className="block text-xs text-gray-500">Grid NY</label>
+            <input id="num-fem-ny" type="number" min="5" max="50" value={fem.ny}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setFem(s => ({ ...s, ny: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Modos</label>
-            <input type="number" min="1" max="20" value={fem.modes}
+            <label htmlFor="num-fem-modos" className="block text-xs text-gray-500">Modos</label>
+            <input id="num-fem-modos" type="number" min="1" max="20" value={fem.modes}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setFem(s => ({ ...s, modes: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Exclusión (x0,y0,x1,y1)</label>
-            <input type="text" placeholder="ej: 2,0,4,2" value={fem.exclude}
+            <label htmlFor="num-fem-excluir" className="block text-xs text-gray-500">Exclusión (x0,y0,x1,y1)</label>
+            <input id="num-fem-excluir" type="text" placeholder="ej: 2,0,4,2" value={fem.exclude}
               className="mt-1 w-full rounded border px-2 py-1 text-sm font-mono"
               onChange={(e) => setFem(s => ({ ...s, exclude: e.target.value }))} />
           </div>
@@ -149,14 +149,14 @@ export function NumericalMethods() {
       {tab !== "fem2d" && tab !== "impedance" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Rayos</label>
-            <input type="number" min="50" max="5000" value={ray.rays}
+            <label htmlFor="num-ray-rayos" className="block text-xs text-gray-500">Rayos</label>
+            <input id="num-ray-rayos" type="number" min="50" max="5000" value={ray.rays}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setRay(s => ({ ...s, rays: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Máx. reflexiones</label>
-            <input type="number" min="5" max="100" value={ray.reflections}
+            <label htmlFor="num-ray-reflexiones" className="block text-xs text-gray-500">Máx. reflexiones</label>
+            <input id="num-ray-reflexiones" type="number" min="5" max="100" value={ray.reflections}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setRay(s => ({ ...s, reflections: Number(e.target.value) }))} />
           </div>

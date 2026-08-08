@@ -78,20 +78,20 @@ export function DiffuserCalculators() {
       {activeType === "qrd" && (
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Frec. diseño (Hz)</label>
-            <input type="number" min="100" max="10000" value={qrd.freq}
+            <label htmlFor="dif-qrd-freq" className="block text-xs text-gray-500">Frec. diseño (Hz)</label>
+            <input id="dif-qrd-freq" type="number" min="100" max="10000" value={qrd.freq}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setQrd(p => ({ ...p, freq: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">N (primo)</label>
-            <input type="number" min="5" max="199" value={qrd.prime}
+            <label htmlFor="dif-qrd-n" className="block text-xs text-gray-500">N (primo)</label>
+            <input id="dif-qrd-n" type="number" min="5" max="199" value={qrd.prime}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setQrd(p => ({ ...p, prime: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Ancho pozo (m)</label>
-            <input type="number" step="0.01" min="0.01" max="1" value={qrd.width}
+            <label htmlFor="dif-qrd-ancho" className="block text-xs text-gray-500">Ancho pozo (m)</label>
+            <input id="dif-qrd-ancho" type="number" step="0.01" min="0.01" max="1" value={qrd.width}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setQrd(p => ({ ...p, width: Number(e.target.value) }))} />
           </div>
@@ -101,20 +101,20 @@ export function DiffuserCalculators() {
       {activeType === "skyline" && (
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Frec. diseño (Hz)</label>
-            <input type="number" min="100" max="10000" value={skyline.freq}
+            <label htmlFor="dif-skyline-freq" className="block text-xs text-gray-500">Frec. diseño (Hz)</label>
+            <input id="dif-skyline-freq" type="number" min="100" max="10000" value={skyline.freq}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setSkyline(p => ({ ...p, freq: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Grid N×N</label>
-            <input type="number" min="2" max="20" value={skyline.grid}
+            <label htmlFor="dif-skyline-grid" className="block text-xs text-gray-500">Grid N×N</label>
+            <input id="dif-skyline-grid" type="number" min="2" max="20" value={skyline.grid}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setSkyline(p => ({ ...p, grid: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Tamaño celda (m)</label>
-            <input type="number" step="0.01" min="0.01" max="1" value={skyline.size}
+            <label htmlFor="dif-skyline-celda" className="block text-xs text-gray-500">Tamaño celda (m)</label>
+            <input id="dif-skyline-celda" type="number" step="0.01" min="0.01" max="1" value={skyline.size}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setSkyline(p => ({ ...p, size: Number(e.target.value) }))} />
           </div>

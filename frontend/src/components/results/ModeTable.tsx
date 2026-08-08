@@ -50,6 +50,7 @@ export function ModeTable({
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select
+          id="modos-tipo"
           className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
@@ -60,6 +61,7 @@ export function ModeTable({
           <option value="oblicuo">Oblicuos</option>
         </select>
         <input
+          id="modos-fmin"
           type="number"
           placeholder="Frec. min"
           className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-xs"
@@ -67,6 +69,7 @@ export function ModeTable({
           onChange={(e) => setFreqMin(e.target.value)}
         />
         <input
+          id="modos-fmax"
           type="number"
           placeholder="Frec. max"
           className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-xs"

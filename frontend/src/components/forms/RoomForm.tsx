@@ -162,12 +162,13 @@ export function RoomForm() {
           Dimensiones de la sala
         </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {["largo", "ancho", "alto"].map((dim) => (
+            {["largo", "ancho", "alto"].map((dim) => (
             <div key={dim}>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor={`dim-${dim}`} className="mb-1 block text-sm font-medium text-gray-700">
                 {dim.charAt(0).toUpperCase() + dim.slice(1)} (m)
               </label>
               <input
+                id={`dim-${dim}`}
                 type="number"
                 step="0.01"
                 min="0.01"
@@ -188,6 +189,7 @@ export function RoomForm() {
         </h3>
         <div className="mb-3 flex flex-wrap gap-2">
           <input
+            id="mat-filter"
             type="text"
             placeholder="Filtrar materiales..."
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -195,6 +197,7 @@ export function RoomForm() {
             onChange={(e) => setFilter(e.target.value)}
           />
           <select
+            id="mat-categoria"
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -206,12 +209,15 @@ export function RoomForm() {
           </select>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SUP_NOMBRES.map((nombre, i) => (
+          {SUP_NOMBRES.map((nombre, i) => {
+            const supId = `mat-${nombre.toLowerCase().replace(/[\s.]+/g, '-')}`;
+            return (
             <div key={i}>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor={supId} className="mb-1 block text-sm font-medium text-gray-700">
                 {nombre}
               </label>
               <select
+                id={supId}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 value={form.materiales[i]}
                 onChange={(e) => updateMaterial(i, e.target.value)}
@@ -245,10 +251,13 @@ export function RoomForm() {
               </button>
               {showAlpha[i] && (
                 <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-gray-50 p-2">
-                  {BANDAS.map((banda) => (
+                  {BANDAS.map((banda) => {
+                    const alphaId = `alpha-${nombre.toLowerCase().replace(/[\s.]+/g, '-')}-${banda}`;
+                    return (
                     <div key={banda}>
-                      <label className="text-[10px] text-gray-500">{banda} Hz</label>
+                      <label htmlFor={alphaId} className="text-[10px] text-gray-500">{banda} Hz</label>
                       <input
+                        id={alphaId}
                         type="number"
                         step="0.01"
                         min="0"
@@ -259,11 +268,13 @@ export function RoomForm() {
                         onChange={(e) => updateAlpha(i, banda, e.target.value)}
                       />
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -272,6 +283,7 @@ export function RoomForm() {
           Uso de la sala
         </h3>
         <select
+          id="sala-uso"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           value={form.uso}
           onChange={(e) => setForm((f) => ({ ...f, uso: e.target.value }))}

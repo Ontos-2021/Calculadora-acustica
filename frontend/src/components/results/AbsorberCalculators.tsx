@@ -103,20 +103,20 @@ export function AbsorberCalculators() {
       {activeType === "porous" && (
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Espesor (m)</label>
-            <input type="number" step="0.005" min="0.01" max="1" value={porous.thickness}
+            <label htmlFor="abs-poroso-espesor" className="block text-xs text-gray-500">Espesor (m)</label>
+            <input id="abs-poroso-espesor" type="number" step="0.005" min="0.01" max="1" value={porous.thickness}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setPorous(p => ({ ...p, thickness: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Resistividad flujo σ</label>
-            <input type="number" min="1000" max="1000000" value={porous.flow}
+            <label htmlFor="abs-poroso-flow" className="block text-xs text-gray-500">Resistividad flujo σ</label>
+            <input id="abs-poroso-flow" type="number" min="1000" max="1000000" value={porous.flow}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setPorous(p => ({ ...p, flow: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Densidad (kg/m³)</label>
-            <input type="number" min="10" max="500" value={porous.density}
+            <label htmlFor="abs-poroso-densidad" className="block text-xs text-gray-500">Densidad (kg/m³)</label>
+            <input id="abs-poroso-densidad" type="number" min="10" max="500" value={porous.density}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setPorous(p => ({ ...p, density: Number(e.target.value) }))} />
           </div>
@@ -126,26 +126,26 @@ export function AbsorberCalculators() {
       {activeType === "helmholtz" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Área cuello (m²)</label>
-            <input type="number" step="0.001" min="0.001" max="1" value={helmholtz.neckArea}
+            <label htmlFor="abs-helmholtz-cuello-area" className="block text-xs text-gray-500">Área cuello (m²)</label>
+            <input id="abs-helmholtz-cuello-area" type="number" step="0.001" min="0.001" max="1" value={helmholtz.neckArea}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setHelmholtz(h => ({ ...h, neckArea: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Volumen cavidad (m³)</label>
-            <input type="number" step="0.01" min="0.01" max="10" value={helmholtz.cavityVol}
+            <label htmlFor="abs-helmholtz-cavidad-vol" className="block text-xs text-gray-500">Volumen cavidad (m³)</label>
+            <input id="abs-helmholtz-cavidad-vol" type="number" step="0.01" min="0.01" max="10" value={helmholtz.cavityVol}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setHelmholtz(h => ({ ...h, cavityVol: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Longitud cuello (m)</label>
-            <input type="number" step="0.005" min="0" max="1" value={helmholtz.neckLen}
+            <label htmlFor="abs-helmholtz-cuello-len" className="block text-xs text-gray-500">Longitud cuello (m)</label>
+            <input id="abs-helmholtz-cuello-len" type="number" step="0.005" min="0" max="1" value={helmholtz.neckLen}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setHelmholtz(h => ({ ...h, neckLen: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Radio cuello (m)</label>
-            <input type="number" step="0.005" min="0.001" max="0.5" value={helmholtz.neckRadius}
+            <label htmlFor="abs-helmholtz-cuello-radio" className="block text-xs text-gray-500">Radio cuello (m)</label>
+            <input id="abs-helmholtz-cuello-radio" type="number" step="0.005" min="0.001" max="0.5" value={helmholtz.neckRadius}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setHelmholtz(h => ({ ...h, neckRadius: Number(e.target.value) }))} />
           </div>
@@ -155,14 +155,14 @@ export function AbsorberCalculators() {
       {activeType === "membrane" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Masa superficial (kg/m²)</label>
-            <input type="number" step="0.5" min="0.5" max="200" value={membrane.massArea}
+            <label htmlFor="abs-membrana-masa" className="block text-xs text-gray-500">Masa superficial (kg/m²)</label>
+            <input id="abs-membrana-masa" type="number" step="0.5" min="0.5" max="200" value={membrane.massArea}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setMembrane(m => ({ ...m, massArea: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Cámara de aire (m)</label>
-            <input type="number" step="0.01" min="0.01" max="2" value={membrane.airGap}
+            <label htmlFor="abs-membrana-camara" className="block text-xs text-gray-500">Cámara de aire (m)</label>
+            <input id="abs-membrana-camara" type="number" step="0.01" min="0.01" max="2" value={membrane.airGap}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setMembrane(m => ({ ...m, airGap: Number(e.target.value) }))} />
           </div>

@@ -82,20 +82,20 @@ export function MeasurementTools() {
       {tab === "ess" && (
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">f₁ (Hz)</label>
-            <input type="number" min="1" max="1000" value={ess.f1}
+            <label htmlFor="med-ess-f1" className="block text-xs text-gray-500">f₁ (Hz)</label>
+            <input id="med-ess-f1" type="number" min="1" max="1000" value={ess.f1}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setEss(s => ({ ...s, f1: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">f₂ (Hz)</label>
-            <input type="number" min="100" max="48000" value={ess.f2}
+            <label htmlFor="med-ess-f2" className="block text-xs text-gray-500">f₂ (Hz)</label>
+            <input id="med-ess-f2" type="number" min="100" max="48000" value={ess.f2}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setEss(s => ({ ...s, f2: Number(e.target.value) }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">Duración (s)</label>
-            <input type="number" step="0.1" min="0.1" max="30" value={ess.dur}
+            <label htmlFor="med-ess-duracion" className="block text-xs text-gray-500">Duración (s)</label>
+            <input id="med-ess-duracion" type="number" step="0.1" min="0.1" max="30" value={ess.dur}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setEss(s => ({ ...s, dur: Number(e.target.value) }))} />
           </div>
@@ -104,8 +104,9 @@ export function MeasurementTools() {
 
       {tab === "waterfall" && (
         <div className="mb-4">
-          <label className="block text-xs text-gray-500">IR (valores separados por coma)</label>
+          <label htmlFor="med-waterfall-ir" className="block text-xs text-gray-500">IR (valores separados por coma)</label>
           <textarea
+            id="med-waterfall-ir"
             rows={3}
             placeholder="0,0.5,0.2,-0.1,..."
             className="mt-1 w-full rounded border px-2 py-1 text-sm font-mono"
@@ -118,15 +119,15 @@ export function MeasurementTools() {
       {tab === "calibrate" && (
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500">Banda (Hz)</label>
-            <select className="mt-1 w-full rounded border px-2 py-1 text-sm"
+            <label htmlFor="med-cal-banda" className="block text-xs text-gray-500">Banda (Hz)</label>
+            <select id="med-cal-banda" className="mt-1 w-full rounded border px-2 py-1 text-sm"
               value={calFreq} onChange={(e) => setCalFreq(e.target.value)}>
               {BANDAS.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500">RT60 medido (s)</label>
-            <input type="number" step="0.01" min="0.01" max="10" value={calMeasured}
+            <label htmlFor="med-cal-rt60" className="block text-xs text-gray-500">RT60 medido (s)</label>
+            <input id="med-cal-rt60" type="number" step="0.01" min="0.01" max="10" value={calMeasured}
               className="mt-1 w-full rounded border px-2 py-1 text-sm"
               onChange={(e) => setCalMeasured(e.target.value)} />
           </div>

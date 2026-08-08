@@ -251,7 +251,7 @@ export default function ResultsContent() {
         {!apiKey ? (
           <div className="rounded-lg bg-amber-50 p-4">
             <p className="mb-3 text-sm text-amber-800">Esta funcionalidad requiere una licencia PAID.</p>
-            <input type="text" placeholder="Ingrese su API Key..."
+            <input id="ism-apikey" type="text" placeholder="Ingrese su API Key..."
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
           </div>
@@ -259,10 +259,12 @@ export default function ResultsContent() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               {(["Fuente", "Receptor"] as const).flatMap((label, gi) =>
-                ["X", "Y", "Z"].map((axis, ai) => (
+                ["X", "Y", "Z"].map((axis, ai) => {
+                  const ismId = `ism-${label.toLowerCase()}-${axis.toLowerCase()}`;
+                  return (
                   <div key={`${label}-${axis}`}>
-                    <label className="block text-xs font-medium text-gray-500">{label} {axis}</label>
-                    <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                    <label htmlFor={ismId} className="block text-xs font-medium text-gray-500">{label} {axis}</label>
+                    <input id={ismId} type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
                       value={gi === 0 ? sourcePos[axis.toLowerCase() as "x" | "y" | "z"] : receiverPos[axis.toLowerCase() as "x" | "y" | "z"]}
                       onChange={(e) => {
                         const v = Number(e.target.value);
@@ -270,7 +272,8 @@ export default function ResultsContent() {
                         else setReceiverPos(s => ({ ...s, [axis.toLowerCase()]: v }));
                       }} />
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
             <button onClick={async () => {

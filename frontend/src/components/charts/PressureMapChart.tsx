@@ -110,10 +110,11 @@ export function PressureMapChart({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-500">
+          <label htmlFor="presion-modo" className="block text-xs font-medium text-gray-500">
             Modo
           </label>
           <select
+            id="presion-modo"
             className="mt-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
             value={selectedMode}
             onChange={(e) => onSelectMode(e.target.value)}
@@ -127,10 +128,11 @@ export function PressureMapChart({
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500">
+          <label htmlFor="presion-fmax" className="block text-xs font-medium text-gray-500">
             Frecuencia máxima: {maxFreq} Hz
           </label>
           <input
+            id="presion-fmax"
             type="range"
             min={50}
             max={500}
