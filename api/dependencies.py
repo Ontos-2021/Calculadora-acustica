@@ -15,6 +15,7 @@ FEATURE_MAP = {
     "/api/v1/design/targets": ["basic"],
     "/api/v1/design/air-absorption": ["basic"],
     "/api/v1/design/audience-absorption": ["basic"],
+    "/api/v1/design/inverse": ["basic"],
     "/api/v1/impulse-response": ["ism"],
     "/api/v1/health": ["basic"],
 }

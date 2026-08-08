@@ -72,6 +72,28 @@ export async function fetchMaterialDetail(name: string): Promise<MaterialInfo> {
   return res.json();
 }
 
+export async function fetchInverseDesign(
+  data: {
+    largo: number;
+    ancho: number;
+    alto: number;
+    superficies: { material: string; alphas?: Record<string, number> }[];
+    target_uso: string;
+    include_placement?: boolean;
+  },
+): Promise<import("./types").InverseDesignResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/design/inverse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, err.detail || "Error en diseño inverso");
+  }
+  return res.json();
+}
+
 export interface PressureMapRequest {
   largo: number;
   ancho: number;

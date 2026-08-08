@@ -137,3 +137,37 @@ class AudienceAbsorptionRequest(BaseModel):
     seated: bool = True
     upholstered: bool = True
     occupied: float = Field(default=0.85, ge=0, le=1)
+
+
+class InverseDesignRequest(BaseModel):
+    largo: float = Field(gt=0)
+    ancho: float = Field(gt=0)
+    alto: float = Field(gt=0)
+    superficies: list[SurfaceRequest] = Field(default=[SurfaceRequest()] * 6, min_length=6, max_length=6)
+    target_uso: str
+    include_placement: bool = False
+
+
+class MaterialSuggestion(BaseModel):
+    material: str
+    area_needed_m2: float
+    alpha_w: Optional[float] = None
+    iso_class: str
+    categoria: str
+    per_band: dict[str, float]
+
+
+class PlacementSuggestion(BaseModel):
+    surface: str
+    surface_area_m2: float
+    missing_absorption_m2: float
+    priority_score: float
+    coverage_percent: float
+
+
+class InverseDesignResponse(BaseModel):
+    current_absorption: dict[str, float]
+    required_absorption: dict[str, float]
+    missing_absorption: dict[str, float]
+    material_suggestions: list[MaterialSuggestion]
+    placement_suggestions: list[PlacementSuggestion] = []

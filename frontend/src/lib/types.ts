@@ -87,6 +87,31 @@ export interface ListeningPosition {
   score: number;
 }
 
+export interface MaterialSuggestion {
+  material: string;
+  area_needed_m2: number;
+  alpha_w: number | null;
+  iso_class: string;
+  categoria: string;
+  per_band: Record<string, number>;
+}
+
+export interface PlacementSuggestion {
+  surface: string;
+  surface_area_m2: number;
+  missing_absorption_m2: number;
+  priority_score: number;
+  coverage_percent: number;
+}
+
+export interface InverseDesignResponse {
+  current_absorption: Record<string, number>;
+  required_absorption: Record<string, number>;
+  missing_absorption: Record<string, number>;
+  material_suggestions: MaterialSuggestion[];
+  placement_suggestions: PlacementSuggestion[];
+}
+
 export interface MaterialInfo {
   nombre: string;
   categoria: string;

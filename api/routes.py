@@ -10,6 +10,7 @@ from acoustic_core.evaluation import (
 )
 from acoustic_core.design import find_closest_ratio, get_rt60_target
 from acoustic_core.presets import MATERIALES_PRESETS, CATEGORIAS, search_materials, calculate_air_absorption, AIR_ABSORPTION_DEFAULT, AudienceConfig, calculate_audience_absorption
+from acoustic_core.inverse import required_absorption, current_absorption, missing_absorption, suggest_materials, suggest_placement
 from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
 from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
 from .schemas import (
@@ -18,6 +19,8 @@ from .schemas import (
     MaterialResponse, MaterialSearchRequest,
     AirAbsorptionRequest, AirAbsorptionResponse,
     AudienceAbsorptionRequest,
+    InverseDesignRequest, InverseDesignResponse,
+    MaterialSuggestion, PlacementSuggestion,
 )
 
 router = APIRouter()
@@ -166,6 +169,39 @@ async def audience_absorption(data: AudienceAbsorptionRequest):
         occupied=data.occupied,
     )
     return calculate_audience_absorption(config)
+
+
+@router.post("/design/inverse", response_model=InverseDesignResponse)
+async def inverse_design(data: InverseDesignRequest):
+    room = _build_room(CalculateRequest(
+        largo=data.largo, ancho=data.ancho, alto=data.alto,
+        superficies=data.superficies, uso=data.target_uso,
+    ))
+    target = get_rt60_target(data.target_uso)
+    if not target:
+        raise HTTPException(400, f"Uso objetivo '{data.target_uso}' no válido")
+    targets = target["valores"]
+
+    req = required_absorption(room.volumen, targets)
+    curr = current_absorption(room)
+    miss = missing_absorption(room, targets)
+    mats = suggest_materials(room, data.target_uso)
+
+    placements = []
+    if data.include_placement:
+        from acoustic_core.resonance import calculate_modes
+        from acoustic_core.pressure import compute_pressure_map
+        modos = calculate_modes(room)
+        pmap = compute_pressure_map(room, modos=modos, max_freq=300.0)
+        placements = suggest_placement(room, data.target_uso, pmap)
+
+    return InverseDesignResponse(
+        current_absorption=curr,
+        required_absorption=req,
+        missing_absorption=miss,
+        material_suggestions=[MaterialSuggestion(**m) for m in mats if "mensaje" not in m],
+        placement_suggestions=[PlacementSuggestion(**p) for p in placements],
+    )
 
 
 @router.post("/pressure-map", response_model=PressureMapResponse)

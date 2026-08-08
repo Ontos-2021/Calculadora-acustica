@@ -4,8 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-import type { CalculateResponse, PressureMapResponse, IRResponse } from "@/lib/types";
-import { calculate, fetchPressureMap, fetchImpulseResponse } from "@/lib/api";
+import type { CalculateResponse, PressureMapResponse, IRResponse, InverseDesignResponse } from "@/lib/types";
+import { calculate, fetchPressureMap, fetchImpulseResponse, fetchInverseDesign } from "@/lib/api";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { PDFDownloadLink } from "@react-pdf/renderer";
@@ -24,6 +24,7 @@ import { PressureMapChart } from "@/components/charts/PressureMapChart";
 import { ListeningPositionSelector } from "@/components/results/ListeningPositionSelector";
 import { ImpulseResponseChart } from "@/components/charts/ImpulseResponseChart";
 import { ISMParams } from "@/components/results/ISMParams";
+import { InverseDesign } from "@/components/results/InverseDesign";
 
 export default function ResultsContent() {
   const searchParams = useSearchParams();
@@ -41,6 +42,8 @@ export default function ResultsContent() {
   const [apiKey, setApiKey] = useState("");
   const [sourcePos, setSourcePos] = useState({ x: 1, y: 1, z: 1.5 });
   const [receiverPos, setReceiverPos] = useState({ x: 4, y: 3, z: 1.2 });
+  const [inverseData, setInverseData] = useState<InverseDesignResponse | null>(null);
+  const [inverseLoading, setInverseLoading] = useState(false);
 
   const fetchResults = useCallback(async () => {
     const encoded = searchParams.get("data");
@@ -64,6 +67,24 @@ export default function ResultsContent() {
         grid_size: 100,
       });
       setPressureData(pm);
+      if (request.uso) {
+        setInverseLoading(true);
+        try {
+          const inv = await fetchInverseDesign({
+            largo: request.largo,
+            ancho: request.ancho,
+            alto: request.alto,
+            superficies: request.superficies,
+            target_uso: request.uso,
+            include_placement: true,
+          });
+          setInverseData(inv);
+        } catch {
+          // inverse design is optional
+        } finally {
+          setInverseLoading(false);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al calcular");
     } finally {
@@ -199,6 +220,13 @@ export default function ResultsContent() {
           <RT60Table bandas={data.rt60_bandas} objetivo={data.objetivo} />
         </div>
       </Card>
+      {inverseData && (
+        <Card>
+          <CardTitle>Diseño Inverso</CardTitle>
+          <InverseDesign data={inverseData} />
+        </Card>
+      )}
+
       <Card>
         <CardTitle>
           Análisis Avanzado — Fuentes Imagen
