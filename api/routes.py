@@ -11,6 +11,7 @@ from acoustic_core.evaluation import (
 from acoustic_core.design import find_closest_ratio, get_rt60_target
 from acoustic_core.presets import MATERIALES_PRESETS, CATEGORIAS, search_materials, calculate_air_absorption, AIR_ABSORPTION_DEFAULT, AudienceConfig, calculate_audience_absorption
 from acoustic_core.inverse import required_absorption, current_absorption, missing_absorption, suggest_materials, suggest_placement
+from acoustic_core.absorbers import porous_absorption, helmholtz_resonator, membrane_absorber
 from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
 from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
 from .schemas import (
@@ -21,6 +22,7 @@ from .schemas import (
     AudienceAbsorptionRequest,
     InverseDesignRequest, InverseDesignResponse,
     MaterialSuggestion, PlacementSuggestion,
+    PorousAbsorberRequest, HelmholtzRequest, MembraneRequest, AbsorberResponse,
 )
 
 router = APIRouter()
@@ -169,6 +171,24 @@ async def audience_absorption(data: AudienceAbsorptionRequest):
         occupied=data.occupied,
     )
     return calculate_audience_absorption(config)
+
+
+@router.post("/design/absorbers/porous", response_model=AbsorberResponse)
+async def porous_absorber(data: PorousAbsorberRequest):
+    alpha = porous_absorption(data.thickness_m, data.flow_resistivity, data.density_kgm3)
+    return AbsorberResponse(f0=0, Q=0, alpha=alpha)
+
+
+@router.post("/design/absorbers/helmholtz", response_model=AbsorberResponse)
+async def helmholtz_absorber(data: HelmholtzRequest):
+    result = helmholtz_resonator(data.neck_area_m2, data.cavity_volume_m3, data.neck_length_m, data.neck_radius_m)
+    return AbsorberResponse(f0=result["f0"], Q=result["Q"], alpha=result["alpha"])
+
+
+@router.post("/design/absorbers/membrane", response_model=AbsorberResponse)
+async def membrane_absorber_endpoint(data: MembraneRequest):
+    result = membrane_absorber(data.mass_per_area_kgm2, data.air_gap_m)
+    return AbsorberResponse(f0=result["f0"], Q=result["Q"], alpha=result["alpha"])
 
 
 @router.post("/design/inverse", response_model=InverseDesignResponse)

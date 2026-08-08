@@ -16,6 +16,9 @@ FEATURE_MAP = {
     "/api/v1/design/air-absorption": ["basic"],
     "/api/v1/design/audience-absorption": ["basic"],
     "/api/v1/design/inverse": ["basic"],
+    "/api/v1/design/absorbers/porous": ["basic"],
+    "/api/v1/design/absorbers/helmholtz": ["basic"],
+    "/api/v1/design/absorbers/membrane": ["basic"],
     "/api/v1/impulse-response": ["ism"],
     "/api/v1/health": ["basic"],
 }

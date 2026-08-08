@@ -25,6 +25,7 @@ import { ListeningPositionSelector } from "@/components/results/ListeningPositio
 import { ImpulseResponseChart } from "@/components/charts/ImpulseResponseChart";
 import { ISMParams } from "@/components/results/ISMParams";
 import { InverseDesign } from "@/components/results/InverseDesign";
+import { AbsorberCalculators } from "@/components/results/AbsorberCalculators";
 
 export default function ResultsContent() {
   const searchParams = useSearchParams();
@@ -226,6 +227,8 @@ export default function ResultsContent() {
           <InverseDesign data={inverseData} />
         </Card>
       )}
+
+      <AbsorberCalculators />
 
       <Card>
         <CardTitle>

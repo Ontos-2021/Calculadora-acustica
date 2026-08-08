@@ -165,6 +165,30 @@ class PlacementSuggestion(BaseModel):
     coverage_percent: float
 
 
+class PorousAbsorberRequest(BaseModel):
+    thickness_m: float = Field(default=0.05, gt=0, le=1)
+    flow_resistivity: float = Field(default=10000, gt=0, le=1000000)
+    density_kgm3: float = Field(default=100, ge=10, le=500)
+
+
+class HelmholtzRequest(BaseModel):
+    neck_area_m2: float = Field(default=0.01, gt=0, le=1)
+    cavity_volume_m3: float = Field(default=0.1, gt=0, le=10)
+    neck_length_m: float = Field(default=0.05, ge=0, le=1)
+    neck_radius_m: float = Field(default=0.02, gt=0, le=0.5)
+
+
+class MembraneRequest(BaseModel):
+    mass_per_area_kgm2: float = Field(default=10, gt=0, le=200)
+    air_gap_m: float = Field(default=0.1, gt=0, le=2)
+
+
+class AbsorberResponse(BaseModel):
+    f0: float
+    Q: float = 0
+    alpha: dict[str, float]
+
+
 class InverseDesignResponse(BaseModel):
     current_absorption: dict[str, float]
     required_absorption: dict[str, float]
