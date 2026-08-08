@@ -12,6 +12,7 @@ from acoustic_core.design import find_closest_ratio, get_rt60_target
 from acoustic_core.presets import MATERIALES_PRESETS, CATEGORIAS, search_materials, calculate_air_absorption, AIR_ABSORPTION_DEFAULT, AudienceConfig, calculate_audience_absorption
 from acoustic_core.inverse import required_absorption, current_absorption, missing_absorption, suggest_materials, suggest_placement
 from acoustic_core.absorbers import porous_absorption, helmholtz_resonator, membrane_absorber
+from acoustic_core.diffusers import qrd_well_depths, skyline_well_depths, estimate_diffusion_coefficient
 from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
 from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
 from .schemas import (
@@ -23,6 +24,7 @@ from .schemas import (
     InverseDesignRequest, InverseDesignResponse,
     MaterialSuggestion, PlacementSuggestion,
     PorousAbsorberRequest, HelmholtzRequest, MembraneRequest, AbsorberResponse,
+    QRDRequest, SkylineRequest,
 )
 
 router = APIRouter()
@@ -189,6 +191,23 @@ async def helmholtz_absorber(data: HelmholtzRequest):
 async def membrane_absorber_endpoint(data: MembraneRequest):
     result = membrane_absorber(data.mass_per_area_kgm2, data.air_gap_m)
     return AbsorberResponse(f0=result["f0"], Q=result["Q"], alpha=result["alpha"])
+
+
+@router.post("/design/diffusers/qrd")
+async def qrd_calculator(data: QRDRequest):
+    result = qrd_well_depths(data.design_freq_hz, data.prime_n, data.well_width_m)
+    if "error" in result:
+        raise HTTPException(400, result["error"])
+    result["diffusion_coefficient"] = estimate_diffusion_coefficient(data.design_freq_hz, result["max_depth_m"])
+    return result
+
+
+@router.post("/design/diffusers/skyline")
+async def skyline_calculator(data: SkylineRequest):
+    result = skyline_well_depths(data.design_freq_hz, data.grid_n, data.well_size_m)
+    if "error" in result:
+        raise HTTPException(400, result["error"])
+    return result
 
 
 @router.post("/design/inverse", response_model=InverseDesignResponse)

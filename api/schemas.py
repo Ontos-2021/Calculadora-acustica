@@ -165,6 +165,18 @@ class PlacementSuggestion(BaseModel):
     coverage_percent: float
 
 
+class QRDRequest(BaseModel):
+    design_freq_hz: float = Field(default=1000, gt=0, le=10000)
+    prime_n: int = Field(default=17, ge=5, le=200)
+    well_width_m: float = Field(default=0.05, gt=0, le=1)
+
+
+class SkylineRequest(BaseModel):
+    design_freq_hz: float = Field(default=1000, gt=0, le=10000)
+    grid_n: int = Field(default=7, ge=2, le=20)
+    well_size_m: float = Field(default=0.05, gt=0, le=1)
+
+
 class PorousAbsorberRequest(BaseModel):
     thickness_m: float = Field(default=0.05, gt=0, le=1)
     flow_resistivity: float = Field(default=10000, gt=0, le=1000000)
