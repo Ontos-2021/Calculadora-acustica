@@ -1,4 +1,5 @@
 import math
+import cmath
 import struct
 import io
 from .models import BANDAS_OCTAVA, Material, Room, Surface
@@ -6,6 +7,45 @@ from .presets import MATERIALES_PRESETS
 from .reverberation import calculate_rt60, rt60_sabine
 
 C = 343.0
+
+
+def _next_pow2(n: int) -> int:
+    return 1 << (n - 1).bit_length()
+
+
+def _fft(x: list[complex]) -> list[complex]:
+    n = len(x)
+    if n <= 1:
+        return x
+    even = _fft(x[0::2])
+    odd = _fft(x[1::2])
+    a = cmath.exp(-2j * math.pi / n)
+    w = 1 + 0j
+    out = [0j] * n
+    half_n = n // 2
+    for k in range(half_n):
+        t = w * odd[k]
+        out[k] = even[k] + t
+        out[k + half_n] = even[k] - t
+        w *= a
+    return out
+
+
+def _ifft(x: list[complex]) -> list[complex]:
+    n = len(x)
+    conj = [v.conjugate() for v in x]
+    out = _fft(conj)
+    return [v.conjugate() / n for v in out]
+
+
+def _convolve_fft(a: list[float], b: list[float]) -> list[float]:
+    n = len(a) + len(b) - 1
+    size = _next_pow2(n)
+    fa = _fft([complex(v, 0) for v in a] + [0j] * (size - len(a)))
+    fb = _fft([complex(v, 0) for v in b] + [0j] * (size - len(b)))
+    fc = [fa[i] * fb[i] for i in range(size)]
+    result = _ifft(fc)
+    return [round(v.real, 6) for v in result[:n]]
 
 
 def generate_ess(
@@ -35,25 +75,13 @@ def inverse_filter(ess: list[float], sample_rate: int) -> list[float]:
     return [inv[i] * env[i] for i in range(n)]
 
 
-def convolve(a: list[float], b: list[float]) -> list[float]:
-    n = len(a) + len(b) - 1
-    result = [0.0] * n
-    for i in range(len(a)):
-        ai = a[i]
-        if ai == 0:
-            continue
-        for j in range(len(b)):
-            result[i + j] += ai * b[j]
-    return result
-
-
 def ess_deconvolution(
     response: list[float],
     ess: list[float],
     sample_rate: int,
 ) -> list[float]:
     inv = inverse_filter(ess, sample_rate)
-    ir = convolve(response, inv)
+    ir = _convolve_fft(response, inv)
     peak = max(abs(v) for v in ir) or 1
     return [v / peak for v in ir]
 

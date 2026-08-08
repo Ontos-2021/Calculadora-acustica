@@ -27,6 +27,7 @@ FEATURE_MAP = {
     "/api/v1/design/isolation/nc-targets": ["basic"],
     "/api/v1/impulse-response": ["ism"],
     "/api/v1/health": ["basic"],
+    "/api/v1/core-bundle": ["basic"],
     "/api/v1/measurement/ess": ["basic"],
     "/api/v1/measurement/deconvolve": ["basic"],
     "/api/v1/measurement/waterfall": ["basic"],

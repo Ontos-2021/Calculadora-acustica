@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, HTTPException, Depends, Security, Query
 from .dependencies import verify_endpoint_access, check_feature
 
@@ -103,6 +104,18 @@ def _compute_all(room: Room) -> dict:
 @router.get("/health", response_model=HealthResponse)
 async def health():
     return HealthResponse()
+
+
+@router.get("/core-bundle")
+async def core_bundle():
+    core_dir = os.path.join(os.path.dirname(__file__), "..", "acoustic_core")
+    files = {}
+    for fname in sorted(os.listdir(core_dir)):
+        if fname.endswith(".py") and fname != "__init__.py":
+            fpath = os.path.join(core_dir, fname)
+            with open(fpath) as f:
+                files[fname] = f.read()
+    return files
 
 
 @router.post("/calculate", response_model=CalculateResponse)

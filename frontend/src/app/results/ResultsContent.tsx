@@ -30,6 +30,7 @@ import { DiffuserCalculators } from "@/components/results/DiffuserCalculators";
 import { IsolationCalculators } from "@/components/results/IsolationCalculators";
 import { MeasurementTools } from "@/components/results/MeasurementTools";
 import { NumericalMethods } from "@/components/results/NumericalMethods";
+import { TabContainer } from "@/components/ui/TabContainer";
 
 export default function ResultsContent() {
   const searchParams = useSearchParams();
@@ -137,110 +138,110 @@ export default function ResultsContent() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <SummaryCards data={data} />
-      {data.degeneracion_dimensiones.length > 0 && (
-        <DimensionWarnings warnings={data.degeneracion_dimensiones} />
-      )}
 
-      {pressureData && (
-        <Card>
-          <CardTitle>Mapa de Presión Modal</CardTitle>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <PressureMapChart
-                data={pressureData}
-                modes={data.modos}
-                selectedMode={selectedMode}
-                onSelectMode={setSelectedMode}
-                onMaxFreqChange={setMaxFreq}
-                maxFreq={maxFreq}
-              />
-            </div>
-            <div>
-              <ListeningPositionSelector
-                modes={data.modos}
-                largo={requestData?.largo ?? 5}
-                ancho={requestData?.ancho ?? 4}
-                alto={requestData?.alto ?? 3}
-              />
-            </div>
+      <TabContainer
+        tabs={[
+          { key: "analysis", label: "Análisis", badge: String(data.cantidad_modos) },
+          { key: "pressure", label: "Presión" },
+          { key: "design", label: "Diseño" },
+          { key: "isolation", label: "Aislamiento" },
+          { key: "measurement", label: "Medición" },
+          { key: "numerical", label: "Numérico" },
+        ]}
+      >
+        <div className="space-y-6">
+          {data.degeneracion_dimensiones.length > 0 && (
+            <DimensionWarnings warnings={data.degeneracion_dimensiones} />
+          )}
+          <Card>
+            <CardTitle>
+              Modos de Resonancia
+              <span className="ml-2 text-sm font-normal text-gray-400">({data.cantidad_modos} modos)</span>
+            </CardTitle>
+            <ModeTable
+              modos={data.modos}
+              onSelectMode={(freq) => {
+                const m = data.modos.find((mm) => mm.frecuencia === freq);
+                if (m && requestData) {
+                  setSelectedMode(String(freq));
+                  fetchPressureMap({
+                    largo: requestData.largo, ancho: requestData.ancho, alto: requestData.alto,
+                    superficies: JSON.parse(atob(searchParams.get("data") || "")).superficies,
+                    mode_indices: [m.indices[0], m.indices[1], m.indices[2]], grid_size: 80,
+                  }).then(setPressureData);
+                }
+              }}
+              selectedFreq={selectedMode !== "all" ? Number(selectedMode) : null}
+            />
+          </Card>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <div className="space-y-4">
+                <BonelloVerdict bonello={data.bonello} />
+                <BonelloChart bandas={data.bonello.bandas} />
+              </div>
+            </Card>
+            <Card>
+              <ProportionsCard proporciones={data.proporciones} />
+            </Card>
           </div>
-        </Card>
-      )}
+          <Card>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-gray-700">RT60 por Método</h3>
+                <RT60Chart data={data.rt60_bandas} />
+              </div>
+              {data.objetivo ? (
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-gray-700">Actual vs. Objetivo</h3>
+                  <ComparisonChart data={data.rt60_bandas} objetivo={data.objetivo} />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center rounded-lg bg-gray-50 p-8 text-sm text-gray-400">
+                  Seleccione un uso para ver la comparación
+                </div>
+              )}
+            </div>
+            <div className="mt-6">
+              <RT60Table bandas={data.rt60_bandas} objetivo={data.objetivo} />
+            </div>
+          </Card>
+        </div>
 
-      <Card>
-        <CardTitle>
-          Modos de Resonancia
-          <span className="ml-2 text-sm font-normal text-gray-400">
-            ({data.cantidad_modos} modos)
-          </span>
-        </CardTitle>
-        <ModeTable
-          modos={data.modos}
-          onSelectMode={(freq) => {
-            const m = data.modos.find((mm) => mm.frecuencia === freq);
-            if (m && requestData) {
-              setSelectedMode(String(freq));
-              fetchPressureMap({
-                largo: requestData.largo,
-                ancho: requestData.ancho,
-                alto: requestData.alto,
-                superficies: JSON.parse(atob(searchParams.get("data") || "")).superficies,
-                mode_indices: [m.indices[0], m.indices[1], m.indices[2]],
-                grid_size: 80,
-              }).then(setPressureData);
-            }
-          }}
-          selectedFreq={selectedMode !== "all" ? Number(selectedMode) : null}
-        />
-      </Card>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <div className="grid grid-cols-1 gap-4">
-            <BonelloVerdict bonello={data.bonello} />
-            <BonelloChart bandas={data.bonello.bandas} />
-          </div>
-        </Card>
-        <Card>
-          <ProportionsCard proporciones={data.proporciones} />
-        </Card>
-      </div>
-      <Card>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">RT60 por Método</h3>
-            <RT60Chart data={data.rt60_bandas} />
-          </div>
-          {data.objetivo ? (
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-gray-700">Actual vs. Objetivo</h3>
-              <ComparisonChart data={data.rt60_bandas} objetivo={data.objetivo} />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center rounded-lg bg-gray-50 p-8 text-sm text-gray-400">
-              Seleccione un uso para ver la comparación con el RT60 objetivo
-            </div>
+        <div>
+          {pressureData && (
+            <Card>
+              <CardTitle>Mapa de Presión Modal</CardTitle>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <PressureMapChart data={pressureData} modes={data.modos}
+                    selectedMode={selectedMode} onSelectMode={setSelectedMode}
+                    onMaxFreqChange={setMaxFreq} maxFreq={maxFreq} />
+                </div>
+                <div>
+                  <ListeningPositionSelector modes={data.modos}
+                    largo={requestData?.largo ?? 5} ancho={requestData?.ancho ?? 4} alto={requestData?.alto ?? 3} />
+                </div>
+              </div>
+            </Card>
           )}
         </div>
-        <div className="mt-6">
-          <RT60Table bandas={data.rt60_bandas} objetivo={data.objetivo} />
+
+        <div className="space-y-6">
+          {inverseData && (
+            <Card>
+              <CardTitle>Diseño Inverso</CardTitle>
+              <InverseDesign data={inverseData} />
+            </Card>
+          )}
+          <AbsorberCalculators />
+          <DiffuserCalculators />
         </div>
-      </Card>
-      {inverseData && (
-        <Card>
-          <CardTitle>Diseño Inverso</CardTitle>
-          <InverseDesign data={inverseData} />
-        </Card>
-      )}
 
-      <AbsorberCalculators />
-
-      <DiffuserCalculators />
-
-      <IsolationCalculators />
-
-      <MeasurementTools />
-
-      <NumericalMethods />
+        <div><IsolationCalculators /></div>
+        <div><MeasurementTools /></div>
+        <div><NumericalMethods /></div>
+      </TabContainer>
 
       <Card>
         <CardTitle>
@@ -249,75 +250,45 @@ export default function ResultsContent() {
         </CardTitle>
         {!apiKey ? (
           <div className="rounded-lg bg-amber-50 p-4">
-            <p className="mb-3 text-sm text-amber-800">
-              Esta funcionalidad requiere una licencia PAID.
-            </p>
-            <input
-              type="text"
-              placeholder="Ingrese su API Key..."
+            <p className="mb-3 text-sm text-amber-800">Esta funcionalidad requiere una licencia PAID.</p>
+            <input type="text" placeholder="Ingrese su API Key..."
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
+              value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500">Fuente X</label>
-                <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                  value={sourcePos.x} onChange={(e) => setSourcePos(s => ({ ...s, x: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500">Fuente Y</label>
-                <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                  value={sourcePos.y} onChange={(e) => setSourcePos(s => ({ ...s, y: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500">Fuente Z</label>
-                <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                  value={sourcePos.z} onChange={(e) => setSourcePos(s => ({ ...s, z: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500">Receptor X</label>
-                <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                  value={receiverPos.x} onChange={(e) => setReceiverPos(s => ({ ...s, x: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500">Receptor Y</label>
-                <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                  value={receiverPos.y} onChange={(e) => setReceiverPos(s => ({ ...s, y: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500">Receptor Z</label>
-                <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                  value={receiverPos.z} onChange={(e) => setReceiverPos(s => ({ ...s, z: Number(e.target.value) }))} />
-              </div>
+              {(["Fuente", "Receptor"] as const).flatMap((label, gi) =>
+                ["X", "Y", "Z"].map((axis, ai) => (
+                  <div key={`${label}-${axis}`}>
+                    <label className="block text-xs font-medium text-gray-500">{label} {axis}</label>
+                    <input type="number" step="0.1" className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                      value={gi === 0 ? sourcePos[axis.toLowerCase() as "x" | "y" | "z"] : receiverPos[axis.toLowerCase() as "x" | "y" | "z"]}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (gi === 0) setSourcePos(s => ({ ...s, [axis.toLowerCase()]: v }));
+                        else setReceiverPos(s => ({ ...s, [axis.toLowerCase()]: v }));
+                      }} />
+                  </div>
+                ))
+              )}
             </div>
-            <button
-              onClick={async () => {
-                setIrLoading(true);
-                setIrError(null);
-                try {
-                  const r = requestData ? { largo: requestData.largo, ancho: requestData.ancho, alto: requestData.alto } : { largo: 5, ancho: 4, alto: 3 };
-                  const encoded = searchParams.get("data");
-                  let superficies: { material: string }[] = [];
-                  try { const req = JSON.parse(atob(encoded || "")); superficies = req.superficies || []; } catch {}
-                  const result = await fetchImpulseResponse({
-                    ...r, superficies,
-                    source: [sourcePos.x, sourcePos.y, sourcePos.z],
-                    receiver: [receiverPos.x, receiverPos.y, receiverPos.z],
-                  }, apiKey);
-                  setIrData(result);
-                } catch (err) {
-                  setIrError(err instanceof Error ? err.message : "Error ISM");
-                } finally {
-                  setIrLoading(false);
-                }
-              }}
-              disabled={irLoading}
-              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
-            >
+            <button onClick={async () => {
+              setIrLoading(true); setIrError(null);
+              try {
+                const r = requestData ?? { largo: 5, ancho: 4, alto: 3 };
+                const encoded = searchParams.get("data");
+                let superficies: { material: string }[] = [];
+                try { const req = JSON.parse(atob(encoded || "")); superficies = req.superficies || []; } catch {}
+                const result = await fetchImpulseResponse({ ...r, superficies,
+                  source: [sourcePos.x, sourcePos.y, sourcePos.z],
+                  receiver: [receiverPos.x, receiverPos.y, receiverPos.z],
+                }, apiKey);
+                setIrData(result);
+              } catch (err) { setIrError(err instanceof Error ? err.message : "Error ISM"); }
+              finally { setIrLoading(false); }
+            }} disabled={irLoading}
+              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
               {irLoading ? "Calculando..." : "Calcular respuesta al impulso"}
             </button>
             {irError && <p className="text-sm text-red-600">{irError}</p>}
@@ -332,38 +303,18 @@ export default function ResultsContent() {
       </Card>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <Link
-          href="/"
-          className="rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-indigo-600"
-        >
-          Volver
-        </Link>
-
+        <Link href="/" className="rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-indigo-600">Volver</Link>
         {requestData && (
-          <PDFDownloadLink
-            document={<PDFReport data={data} room={requestData} irParams={irData?.parameters} />}
+          <PDFDownloadLink document={<PDFReport data={data} room={requestData} irParams={irData?.parameters} />}
             fileName="informe-acustico.pdf"
-            className="rounded-lg bg-gray-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-gray-800"
-          >
-            {({ loading: pdfLoading }) =>
-              pdfLoading ? "Generando PDF..." : "Descargar PDF"
-            }
+            className="rounded-lg bg-gray-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-gray-800">
+            {({ loading }) => loading ? "Generando PDF..." : "Descargar PDF"}
           </PDFDownloadLink>
         )}
-
-        <button
-          onClick={() => exportCSV(data)}
-          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-emerald-700"
-        >
-          Exportar CSV
-        </button>
-
-        <button
-          onClick={() => exportJSON(data)}
-          className="rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-amber-700"
-        >
-          Exportar JSON
-        </button>
+        <button onClick={() => exportCSV(data)}
+          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-emerald-700">Exportar CSV</button>
+        <button onClick={() => exportJSON(data)}
+          className="rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-amber-700">Exportar JSON</button>
       </div>
     </div>
   );
