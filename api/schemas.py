@@ -165,6 +165,24 @@ class PlacementSuggestion(BaseModel):
     coverage_percent: float
 
 
+class SinglePanelTLRequest(BaseModel):
+    mass_per_area_kgm2: float = Field(default=50, gt=0, le=10000)
+    thickness_m: float = Field(default=0.1, gt=0, le=1)
+    material_type: str = "concreto"
+    c_l_material: float = Field(default=0, ge=0, le=10000)
+
+
+class DoublePanelTLRequest(BaseModel):
+    m1_kgm2: float = Field(default=50, gt=0, le=10000)
+    m2_kgm2: float = Field(default=50, gt=0, le=10000)
+    gap_m: float = Field(default=0.05, gt=0, le=2)
+    stud_connection: bool = True
+
+
+class NCEvaluationRequest(BaseModel):
+    spl: dict[str, float]
+
+
 class QRDRequest(BaseModel):
     design_freq_hz: float = Field(default=1000, gt=0, le=10000)
     prime_n: int = Field(default=17, ge=5, le=200)

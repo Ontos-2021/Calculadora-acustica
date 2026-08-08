@@ -13,6 +13,7 @@ from acoustic_core.presets import MATERIALES_PRESETS, CATEGORIAS, search_materia
 from acoustic_core.inverse import required_absorption, current_absorption, missing_absorption, suggest_materials, suggest_placement
 from acoustic_core.absorbers import porous_absorption, helmholtz_resonator, membrane_absorber
 from acoustic_core.diffusers import qrd_well_depths, skyline_well_depths, estimate_diffusion_coefficient
+from acoustic_core.isolation import single_panel_tl, double_panel_tl, calculate_stc, calculate_rw, evaluate_nc, get_nc_target, msr_resonance, critical_frequency
 from acoustic_core.pressure import compute_pressure_map, compute_single_mode_grid, find_optimal_listening
 from acoustic_core.impulse import generate_image_sources, calculate_energy, build_impulse_response, calculate_iso3382_parameters
 from .schemas import (
@@ -25,6 +26,7 @@ from .schemas import (
     MaterialSuggestion, PlacementSuggestion,
     PorousAbsorberRequest, HelmholtzRequest, MembraneRequest, AbsorberResponse,
     QRDRequest, SkylineRequest,
+    SinglePanelTLRequest, DoublePanelTLRequest, NCEvaluationRequest,
 )
 
 router = APIRouter()
@@ -208,6 +210,50 @@ async def skyline_calculator(data: SkylineRequest):
     if "error" in result:
         raise HTTPException(400, result["error"])
     return result
+
+
+@router.post("/design/isolation/single-panel")
+async def single_panel(data: SinglePanelTLRequest):
+    from acoustic_core.isolation import MATERIAL_C_L
+    c_l = data.c_l_material if data.c_l_material > 0 else MATERIAL_C_L.get(data.material_type, 3500)
+    tl = single_panel_tl(data.mass_per_area_kgm2, data.thickness_m, data.material_type)
+    fc = critical_frequency(data.thickness_m, c_l)
+    stc = calculate_stc(tl)
+    rw = calculate_rw(tl)
+    return {
+        "tl": tl,
+        "fc_hz": fc,
+        "mass_per_area_kgm2": data.mass_per_area_kgm2,
+        "thickness_m": data.thickness_m,
+        **stc,
+        **rw,
+    }
+
+
+@router.post("/design/isolation/double-panel")
+async def double_panel(data: DoublePanelTLRequest):
+    tl = double_panel_tl(data.m1_kgm2, data.m2_kgm2, data.gap_m, data.stud_connection)
+    f0 = msr_resonance(data.m1_kgm2, data.m2_kgm2, data.gap_m)
+    return {
+        "tl": tl,
+        "f0_hz": f0,
+        "m1_kgm2": data.m1_kgm2,
+        "m2_kgm2": data.m2_kgm2,
+        "gap_m": data.gap_m,
+        "stud_connection": data.stud_connection,
+    }
+
+
+@router.post("/design/isolation/nc")
+async def nc_evaluation(data: NCEvaluationRequest):
+    result = evaluate_nc(data.spl)
+    return result
+
+
+@router.get("/design/isolation/nc-targets")
+async def nc_targets():
+    from acoustic_core.isolation import NC_TARGETS
+    return NC_TARGETS
 
 
 @router.post("/design/inverse", response_model=InverseDesignResponse)

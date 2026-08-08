@@ -27,6 +27,7 @@ import { ISMParams } from "@/components/results/ISMParams";
 import { InverseDesign } from "@/components/results/InverseDesign";
 import { AbsorberCalculators } from "@/components/results/AbsorberCalculators";
 import { DiffuserCalculators } from "@/components/results/DiffuserCalculators";
+import { IsolationCalculators } from "@/components/results/IsolationCalculators";
 
 export default function ResultsContent() {
   const searchParams = useSearchParams();
@@ -232,6 +233,8 @@ export default function ResultsContent() {
       <AbsorberCalculators />
 
       <DiffuserCalculators />
+
+      <IsolationCalculators />
 
       <Card>
         <CardTitle>
