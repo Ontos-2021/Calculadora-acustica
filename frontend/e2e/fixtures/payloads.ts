@@ -4,12 +4,14 @@ export const SALA_BASE = {
   alto: 3.0,
   superficies: [
     { material: "Concreto" },
-    { material: "Concreto" },
-    { material: "Cartón-yeso" },
-    { material: "Cartón-yeso" },
-    { material: "Parquet sobre hormigón" },
-    { material: "Concreto" },
+    { material: "Madera" },
+    { material: "Yeso" },
+    { material: "Vidrio" },
+    { material: "Alfombra gruesa" },
+    { material: "Panel acústico" },
   ],
+  environment: { temperature_c: 20, relative_humidity: 50, pressure_pa: 101325 },
+  include_air_attenuation: false,
 };
 
 export const SALA_CON_USO = {
@@ -22,4 +24,5 @@ export const SALA_CUBICA = {
   ancho: 5,
   alto: 5,
   superficies: Array(6).fill({ material: "Concreto" }),
+  environment: { temperature_c: 20, relative_humidity: 50, pressure_pa: 101325 },
 };

@@ -1,0 +1,9 @@
+{
+  "id": "offline-typescript-free",
+  "version": "1.0.0",
+  "source": "Bundled deterministic TypeScript FREE engine",
+  "entry_points": ["calculateOffline", "pressureMapOffline", "offlineDefaultMaterials", "offlineDesignTargets"],
+  "runtime_dependencies": [],
+  "requires_network": false,
+  "certification": "engineering_estimate_not_measurement_or_certification"
+}

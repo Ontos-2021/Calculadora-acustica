@@ -43,6 +43,7 @@ export function ComparisonChart({
     },
     series: [
       {
+        id: "actual",
         name: "Actual (Sabine)",
         type: "bar",
         data: actuales.map((v, i) => ({
@@ -55,6 +56,7 @@ export function ComparisonChart({
         })),
       },
       {
+        id: "objetivo",
         name: "Objetivo",
         type: "bar",
         data: objetivos,

@@ -1,0 +1,101 @@
+"""Server-only numerical acoustics APIs backed by NumPy and SciPy.
+
+``acoustic_numerics`` intentionally does not import ``acoustic_core``.  The FREE
+core can therefore remain dependency-light while server deployments opt into the
+research numerical solvers exposed here.
+"""
+
+from .finite_impedance import (
+    AxialMode,
+    FrequencyImpedance,
+    RootConvergenceError,
+    axial_characteristic,
+    rt60_from_decay_rate,
+    solve_axial_mode,
+    solve_axial_modes,
+)
+from .fem2d import (
+    BoundaryImpedance,
+    CoupledMode,
+    FEMMode,
+    FEMResult,
+    TriangularMesh,
+    assemble_boundary_admittance,
+    assemble_matrices,
+    couple_vertical_modes,
+    masked_rectangle_mesh,
+    point_in_polygon,
+    polygon_mesh,
+    rectangle_mesh,
+    solve_fem_modes,
+    solve_polygon_modes,
+)
+from .hybrid import (
+    FrequencyResponse,
+    HybridResult,
+    build_hybrid_result,
+    choose_low_frequency_method,
+    complementary_crossover_weights,
+    hybridize_frequency_responses,
+    schroeder_frequency_hz,
+)
+from .ray_tracing import (
+    AcousticScene,
+    BVH,
+    BandMaterial,
+    Intersection,
+    PlaneSurface,
+    RayArrival,
+    RayTraceConfig,
+    RayTraceResult,
+    SurfaceStatistics,
+    TriangleSurface,
+    segment_sphere_intersection,
+    shoebox_scene,
+    trace_scene,
+)
+
+
+__all__ = [
+    "AcousticScene",
+    "AxialMode",
+    "BVH",
+    "BandMaterial",
+    "BoundaryImpedance",
+    "CoupledMode",
+    "FEMMode",
+    "FEMResult",
+    "FrequencyImpedance",
+    "FrequencyResponse",
+    "HybridResult",
+    "Intersection",
+    "PlaneSurface",
+    "RayArrival",
+    "RayTraceConfig",
+    "RayTraceResult",
+    "RootConvergenceError",
+    "SurfaceStatistics",
+    "TriangleSurface",
+    "TriangularMesh",
+    "assemble_boundary_admittance",
+    "assemble_matrices",
+    "axial_characteristic",
+    "build_hybrid_result",
+    "choose_low_frequency_method",
+    "complementary_crossover_weights",
+    "couple_vertical_modes",
+    "hybridize_frequency_responses",
+    "masked_rectangle_mesh",
+    "point_in_polygon",
+    "polygon_mesh",
+    "rectangle_mesh",
+    "rt60_from_decay_rate",
+    "schroeder_frequency_hz",
+    "segment_sphere_intersection",
+    "shoebox_scene",
+    "solve_axial_mode",
+    "solve_axial_modes",
+    "solve_fem_modes",
+    "solve_polygon_modes",
+    "trace_scene",
+]

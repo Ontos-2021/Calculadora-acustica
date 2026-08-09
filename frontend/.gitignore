@@ -12,9 +12,12 @@
 
 # testing
 /coverage
+/.e2e-acoustic.db
+/*.log
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production

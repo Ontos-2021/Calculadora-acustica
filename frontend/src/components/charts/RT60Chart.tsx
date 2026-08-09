@@ -44,6 +44,7 @@ export function RT60Chart({ data }: { data: RT60Bandas }) {
       { type: "inside", start: 0, end: 100 },
     ],
     series: METODOS.map((metodo) => ({
+      id: `rt60-${metodo}`,
       name: metodo,
       type: "bar",
       data: BANDAS.map((b) => data[b]?.[metodo] ?? 0),
@@ -58,6 +59,7 @@ export function RT60Chart({ data }: { data: RT60Bandas }) {
       style={{ height: 380 }}
       notMerge
       lazyUpdate
+      key="rt60-chart"
     />
   );
 }

@@ -1,50 +1,44 @@
-import { test, expect } from "@playwright/test";
-import { gotoResults, openTab } from "./fixtures/helpers";
+import { test, expect } from "./fixtures/test";
+import { activatePaidLicense, gotoResults, openTab, RESEARCH_KEY } from "./fixtures/helpers";
 import { SALA_BASE } from "./fixtures/payloads";
 
-test.describe("Numerical tab", () => {
-  test.beforeEach(async ({ page }) => {
-    await gotoResults(page, SALA_BASE);
-    await openTab(page, "Numérico");
-  });
-
-  test("impedance calculator with wall Z", async ({ page }) => {
-    await expect(page.getByText("Métodos numéricos")).toBeVisible();
-    await page.locator("#num-largo").fill("5");
-    await page.locator("#num-ancho").fill("4");
-    await page.locator("#num-alto").fill("3");
+test.describe("Métodos numéricos", () => {
+  test("impedancia finita usa dimensiones y ambiente actuales", async ({ page }) => {
+    await gotoResults(page, SALA_BASE); await activatePaidLicense(page); await openTab(page, "Numérico");
+    await expect(page.getByText("Geometría actual:")).toContainText("8.5 × 6 × 3 m");
     await page.locator("#num-imp-z").fill("5000");
-    await page.getByRole("button", { name: "Ejecutar" }).click();
-    await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: "Ejecutar" })).toBeEnabled();
+    await page.getByRole("button", { name: "Ejecutar con la sala actual" }).click();
+    const result = page.getByText("Resultado numérico y estado de investigación").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    const payload = JSON.parse(await result.locator("pre").textContent() || "{}");
+    expect(payload.environment.temperature_c).toBe(20);
+    expect(payload.axial_modes[0].frequency_hz).toBeGreaterThan(0);
   });
 
-  test("FEM 2D with exclusion region", async ({ page }) => {
-    await page.getByRole("button", { name: "FEM 2D" }).click();
-    await page.locator("#num-fem-nx").fill("20");
-    await page.locator("#num-fem-ny").fill("20");
-    await page.locator("#num-fem-modos").fill("5");
-    await page.locator("#num-fem-excluir").fill("1,0,3,2");
-    await page.getByRole("button", { name: "Ejecutar" }).click();
-    await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: "Ejecutar" })).toBeEnabled();
+  test("FEM 2D devuelve modos y residuales", async ({ page }) => {
+    await gotoResults(page, SALA_BASE); await activatePaidLicense(page); await openTab(page, "Numérico");
+    await page.getByRole("tab", { name: "FEM 2D", exact: true }).click();
+    await page.locator("#num-fem-nx").fill("12");
+    await page.locator("#num-fem-ny").fill("12");
+    await page.locator("#num-fem-modos").fill("3");
+    await page.getByRole("button", { name: "Ejecutar con la sala actual" }).click();
+    const result = page.getByText("Resultado numérico y estado de investigación").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    const payload = JSON.parse(await result.locator("pre").textContent() || "{}");
+    expect(payload.modes.length).toBe(3);
+    expect(payload.modes[0].residual).toBeLessThan(0.1);
   });
 
-  test("ray tracing", async ({ page }) => {
-    await page.getByRole("button", { name: "Ray tracing" }).click();
-    await page.locator("#num-ray-rayos").fill("500");
-    await page.locator("#num-ray-reflexiones").fill("30");
-    await page.getByRole("button", { name: "Ejecutar" }).click();
-    await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: "Ejecutar" })).toBeEnabled();
-  });
-
-  test("hybrid method", async ({ page }) => {
-    await page.getByRole("button", { name: "Híbrido" }).click();
-    await page.locator("#num-ray-rayos").fill("300");
-    await page.locator("#num-ray-reflexiones").fill("20");
-    await page.getByRole("button", { name: "Ejecutar" }).click();
-    await expect(page.getByRole("button", { name: /Ejecutar|Calculando\.\.\./ }))
-      .toBeEnabled({ timeout: 30000 });
+  test("licencia RESEARCH ejecuta FEM poligonal", async ({ page }) => {
+    await gotoResults(page, SALA_BASE); await activatePaidLicense(page, RESEARCH_KEY, "RESEARCH"); await openTab(page, "Numérico");
+    await page.getByRole("tab", { name: "FEM polígono" }).click();
+    await page.locator("#num-fem-modos").fill("3");
+    await page.getByRole("button", { name: "Ejecutar con la sala actual" }).click();
+    const result = page.getByText("Resultado numérico y estado de investigación").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    const payload = JSON.parse(await result.locator("pre").textContent() || "{}");
+    expect(payload.nodes.length).toBeGreaterThan(20);
+    expect(payload.modes.length).toBe(3);
+    expect(payload.research_status).toContain("Research");
   });
 });

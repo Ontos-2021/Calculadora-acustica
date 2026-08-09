@@ -1,56 +1,52 @@
-import { test, expect } from "@playwright/test";
-import { gotoResults } from "./fixtures/helpers";
+import { test, expect } from "./fixtures/test";
+import { activatePaidLicense, API_URL, gotoResults, PAID_KEY } from "./fixtures/helpers";
 import { SALA_BASE } from "./fixtures/payloads";
 
-test.describe("PAID feature gating", () => {
-  test("ISM section shows gate with no API key", async ({ page }) => {
+test.describe("Licencia y autorización", () => {
+  test("una cadena cualquiera no desbloquea herramientas", async ({ page }) => {
+    test.info().annotations.push({ type: "expected-console-error", description: "status of 401" });
     await gotoResults(page, SALA_BASE);
-    await expect(page.getByText("Esta funcionalidad requiere una licencia PAID.")).toBeVisible();
+    await page.locator("#license-key").fill("not-a-license");
+    await page.getByRole("button", { name: "Activar" }).click();
+    const license = page.getByRole("region", { name: "Licencia y clave API" });
+    await expect(license.getByRole("alert")).toContainText("clave API no es válida");
+    await page.getByRole("tab", { name: "Diseño" }).click();
+    await expect(page.getByText(/Activa una licencia con la función inverse_design/)).toBeVisible();
   });
 
-  test("typing any API key reveals ISM form", async ({ page }) => {
+  test("valida PAID, persiste solo en sesión y revoca localmente", async ({ page }) => {
     await gotoResults(page, SALA_BASE);
-    await page.locator("#ism-apikey").fill("test-key");
-    await expect(page.getByText("Esta funcionalidad requiere una licencia PAID.")).not.toBeVisible();
-    await expect(page.getByText("Fuente X")).toBeVisible();
+    await activatePaidLicense(page);
+    await page.reload();
+    const license = page.getByRole("region", { name: "Licencia y clave API" });
+    await expect(license.getByText("PAID", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await license.getByRole("button", { name: "Revocar sesión local" }).click();
+    await expect(page.locator("#license-key")).toBeVisible();
+    const stored = await page.evaluate(() => sessionStorage.getItem("acoustic-api-key"));
+    expect(stored).toBeNull();
   });
 
-  test("ISM endpoint returns 403 with any key", async ({ page }) => {
-    // BUG: api/dependencies.py FEATURE_MAP requires 'ism' feature,
-    // but no tier in TIERS grants it, so even valid keys get 403.
-    await gotoResults(page, SALA_BASE);
-    await page.locator("#ism-apikey").fill("free_tier");
-    const responsePromise = page.waitForResponse(
-      (r) => r.url().includes("/impulse-response") && r.request().method() === "POST"
-    );
-    await page.locator("#ism-fuente-x").fill("2");
-    await page.locator("#ism-fuente-y").fill("1.5");
-    await page.locator("#ism-fuente-z").fill("1.5");
-    await page.locator("#ism-receptor-x").fill("4");
-    await page.locator("#ism-receptor-y").fill("3");
-    await page.locator("#ism-receptor-z").fill("1.2");
-    await page.getByRole("button", { name: "Calcular respuesta al impulso" }).click();
-    const response = await responsePromise;
-    expect(response.status()).toBe(403);
-    const body = await response.json();
-    expect(body.detail).toContain("Requiere licencia PAID");
-  });
-
-  test("PAID calculator endpoints respond 200 without API key", async ({ page }) => {
-    // BUG: Only /impulse-response enforces gating. All other PAID endpoints are public.
-    let res = await page.request.post("http://localhost:8000/api/v1/design/absorbers/porous", {
+  test("backend devuelve 401 sin clave y datos numéricos con clave válida", async ({ request }) => {
+    const denied = await request.post(`${API_URL}/api/v1/design/absorbers/porous`, { data: { thickness_m: 0.05, flow_resistivity: 10000, density_kgm3: 100 } });
+    expect(denied.status()).toBe(401);
+    const allowed = await request.post(`${API_URL}/api/v1/design/absorbers/porous`, {
+      headers: { "X-API-Key": PAID_KEY },
       data: { thickness_m: 0.05, flow_resistivity: 10000, density_kgm3: 100 },
     });
-    expect(res.status()).toBe(200);
+    expect(allowed.status()).toBe(200);
+    const payload = await allowed.json();
+    expect(payload.alpha[1000]).toBeGreaterThan(0);
+    expect(payload.estimate_label).toContain("estimate");
+  });
 
-    res = await page.request.post("http://localhost:8000/api/v1/design/isolation/single-panel", {
-      data: { mass_per_area_kgm2: 50, thickness_m: 0.1 },
+  test("errores 403 son claros para un entitlement ausente", async ({ page }) => {
+    await gotoResults(page, SALA_BASE);
+    await activatePaidLicense(page);
+    const response = await page.request.post(`${API_URL}/api/v1/numerical/fem2d/polygon`, {
+      headers: { "X-API-Key": PAID_KEY },
+      data: { vertices: [[0, 0], [2, 0], [2, 2], [0, 2]], target_edge_length_m: 0.5, num_modes: 2 },
     });
-    expect(res.status()).toBe(200);
-
-    res = await page.request.post("http://localhost:8000/api/v1/measurement/ess", {
-      data: { f1_hz: 20, f2_hz: 20000, duration_s: 1, sample_rate: 44100 },
-    });
-    expect(res.status()).toBe(200);
+    expect(response.status()).toBe(403);
+    expect((await response.json()).detail).toContain("research");
   });
 });

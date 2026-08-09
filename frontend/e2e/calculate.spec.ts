@@ -1,38 +1,41 @@
-import { test, expect } from "@playwright/test";
-import { fillRoom } from "./fixtures/helpers";
+import { test, expect } from "./fixtures/test";
+import { decodePayload, fillRoom, gotoResults } from "./fixtures/helpers";
+import { SALA_BASE } from "./fixtures/payloads";
 
-test.describe("Calculation flow", () => {
-  test("fills form and navigates to results page", async ({ page }) => {
+test.describe("Flujo de cálculo anónimo", () => {
+  test("envía el formulario y produce resultados numéricos", async ({ page }) => {
     await page.goto("/");
-    await fillRoom(page, { largo: "8.5", ancho: "6.0", alto: "3.0" });
+    await fillRoom(page, { largo: "8.5", ancho: "6", alto: "3" });
+    await page.locator("#env-temperature").fill("24");
+    await page.locator("#env-humidity").fill("60");
     await page.getByRole("button", { name: "Calcular" }).click();
-    await expect(page).toHaveURL(/\/results/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/results\?data=/);
+    await expect(page.getByText("RT60 Promedio")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("engine-source")).toContainText("acoustic_core del servidor");
+    await expect(page.getByText("24.0 °C · 60 % HR")).toBeVisible();
+    const value = parseFloat(await page.getByText("RT60 Promedio").locator("..").locator("p").nth(1).textContent() || "0");
+    expect(value).toBeGreaterThan(0);
   });
 
-  test("shows 4 summary cards after calculation", async ({ page }) => {
+  test("usa base64url Unicode seguro sin padding", async ({ page }) => {
     await page.goto("/");
-    await fillRoom(page, { largo: "8.5", ancho: "6.0", alto: "3.0" });
+    await fillRoom(page, { largo: "5", ancho: "4", alto: "3" });
     await page.getByRole("button", { name: "Calcular" }).click();
-    await expect(page.locator("text=RT60 Promedio")).toBeVisible({ timeout: 15000 });
-    await expect(page.locator("text=Schroeder")).toBeVisible();
-    await expect(page.locator("text=ancho modal")).toBeVisible();
-    await expect(page.locator("text=Modos totales")).toBeVisible();
+    await expect(page).toHaveURL(/\/results\?data=/);
+    const encoded = new URL(page.url()).searchParams.get("data");
+    expect(encoded).toBeTruthy();
+    expect(encoded).not.toMatch(/[+/=]/);
+    const decoded = decodePayload(encoded!);
+    expect(decoded).toMatchObject({ largo: 5, ancho: 4, alto: 3 });
+    expect(decoded.environment).toEqual({ temperature_c: 20, relative_humidity: 50, pressure_pa: 101325 });
   });
 
-  test("encodes request as base64 query param", async ({ page }) => {
-    await page.goto("/");
-    await fillRoom(page, { largo: "8.5", ancho: "6.0", alto: "3.0" });
-    await page.getByRole("button", { name: "Calcular" }).click();
-    await expect(page).toHaveURL(/\/results\?data=/, { timeout: 10000 });
-    const match = page.url().match(/data=([^&]+)/);
-    expect(match).not.toBeNull();
-    expect(() => JSON.parse(atob(match![1]))).not.toThrow();
-  });
-
-  test("shows RT60 table data after calculation", async ({ page }) => {
-    await page.goto("/");
-    await fillRoom(page, { largo: "8.5", ancho: "6.0", alto: "3.0" });
-    await page.getByRole("button", { name: "Calcular" }).click();
-    await expect(page.locator("text=RT60 por Banda de Octava")).toBeVisible({ timeout: 15000 });
+  test("integra velocidad del sonido, campo difuso y Bolt", async ({ page }) => {
+    await gotoResults(page, SALA_BASE);
+    await expect(page.getByText("Velocidad del sonido")).toBeVisible();
+    await expect(page.getByText("Campo difuso modal")).toBeVisible();
+    await expect(page.getByText("Área de Bolt")).toBeVisible();
+    const speed = await page.getByText("Velocidad del sonido").locator("..").locator("dd").textContent();
+    expect(Number(speed?.split(" ")[0])).toBeGreaterThan(330);
   });
 });

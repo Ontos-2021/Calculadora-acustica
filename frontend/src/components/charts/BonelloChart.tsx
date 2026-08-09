@@ -46,6 +46,7 @@ export function BonelloChart({
     ],
     series: [
       {
+        id: "bonello",
         type: "bar",
         data: counts,
         itemStyle: {

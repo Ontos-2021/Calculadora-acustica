@@ -1,242 +1,165 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
+import { downloadAdvanced, postAdvanced, uploadWav } from "@/lib/api";
+import type { CalculateRequest } from "@/lib/types";
+import { useLicense } from "@/context/LicenseProvider";
+import { roomPayload } from "@/lib/room";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { FeatureGate } from "@/components/ui/FeatureGate";
+import { TabContainer } from "@/components/ui/TabContainer";
+import { ToolError, ToolResult } from "@/components/ui/ToolResult";
 
-const BANDAS = ["125", "250", "500", "1000", "2000", "4000"];
+type Tool = "ess" | "wav" | "signal" | "calibrate";
+type SignalTool = "filter" | "spectrogram" | "modal-q" | "waterfall";
 
-type Tab = "ess" | "waterfall" | "calibrate";
-
-export function MeasurementTools() {
-  const [tab, setTab] = useState<Tab>("ess");
-  const [ess, setEss] = useState({ f1: 20, f2: 20000, dur: 1 });
-  const [waterfallIr, setWaterfallIr] = useState("");
-  const [calFreq, setCalFreq] = useState("500");
-  const [calMeasured, setCalMeasured] = useState("0.8");
+export function MeasurementTools({ room, onResult }: { room: CalculateRequest; onResult?: (name: string, result: unknown) => void }) {
+  const { apiKey } = useLicense();
+  const [tool, setTool] = useState<Tool>("ess");
+  const [ess, setEss] = useState({ f1: 20, f2: 20000, duration: 2, sampleRate: 44100, bitDepth: 24 });
+  const [wavFile, setWavFile] = useState<File | null>(null);
+  const [signalText, setSignalText] = useState("");
+  const [signalTool, setSignalTool] = useState<SignalTool>("spectrogram");
+  const [centerFrequency, setCenterFrequency] = useState(500);
+  const [measuredRt, setMeasuredRt] = useState(0.8);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const calculate = async () => {
-    setLoading(true);
-    setResult(null);
-    try {
-      const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      let body: Record<string, unknown>;
-      let url: string;
-      if (tab === "ess") {
-        url = `${base}/api/v1/measurement/ess`;
-        body = { f1_hz: ess.f1, f2_hz: ess.f2, duration_s: ess.dur, sample_rate: 44100 };
-      } else if (tab === "waterfall") {
-        url = `${base}/api/v1/measurement/waterfall`;
-        const ir = waterfallIr ? waterfallIr.split(",").map(Number) : [0];
-        body = { ir, sample_rate: 44100, duration_s: 0.1 };
-      } else {
-        url = `${base}/api/v1/measurement/calibrate`;
-        body = {
-          largo: 5, ancho: 4, alto: 3,
-          superficies: Array(6).fill({ material: "Concreto" }),
-          measured_rt60: { [calFreq]: parseFloat(calMeasured) },
-        };
-      }
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) setResult(await res.json());
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
+  function syntheticSignal(): number[] {
+    return Array.from({ length: 8192 }, (_, index) => Math.sin(2 * Math.PI * 500 * index / 44100) * Math.exp(-index / 2600));
+  }
+
+  function parsedSignal(): number[] {
+    if (!signalText.trim()) return syntheticSignal();
+    const values = signalText.split(/[\s,;]+/).filter(Boolean).map(Number);
+    if (!values.length || values.some((value) => !Number.isFinite(value))) throw new Error("La señal contiene valores no numéricos.");
+    return values;
+  }
+
+  function store(name: string, response: Record<string, unknown>) {
+    setResult(response);
+    onResult?.(name, response);
+    const preview = response.samples_preview;
+    if (Array.isArray(preview) && preview.every((value) => typeof value === "number")) {
+      setSignalText((preview as number[]).join(","));
     }
-  };
+  }
 
-  const r = result as Record<string, unknown> | null;
+  async function runEss() {
+    if (!apiKey) return;
+    setLoading(true); setError(null);
+    try {
+      const response = await postAdvanced<Record<string, unknown>>("measurement/ess", { f1_hz: ess.f1, f2_hz: ess.f2, duration_s: ess.duration, sample_rate: ess.sampleRate, bit_depth: ess.bitDepth }, apiKey);
+      store("measurement_ess", response);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo generar el ESS."); }
+    finally { setLoading(false); }
+  }
+
+  async function downloadEss() {
+    if (!apiKey) return;
+    setLoading(true); setError(null);
+    try {
+      const download = await downloadAdvanced("measurement/ess/wav", { f1_hz: ess.f1, f2_hz: ess.f2, duration_s: ess.duration, sample_rate: ess.sampleRate, bit_depth: ess.bitDepth }, apiKey, `ess-${ess.f1}-${ess.f2}Hz.wav`);
+      saveBlob(download.blob, download.filename);
+      onResult?.("measurement_ess_wav", { filename: download.filename, size_bytes: download.blob.size, sample_rate: ess.sampleRate });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo descargar el WAV."); }
+    finally { setLoading(false); }
+  }
+
+  async function runWav(analyze: boolean) {
+    if (!apiKey || !wavFile) { setError("Selecciona un archivo WAV."); return; }
+    setLoading(true); setError(null);
+    try {
+      const response = await uploadWav(wavFile, apiKey, { analyze, channel: "mix", directDelayMs: 0 });
+      store(analyze ? "measurement_wav_analysis" : "measurement_wav_import", response);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo procesar el WAV."); }
+    finally { setLoading(false); }
+  }
+
+  async function runSignal() {
+    if (!apiKey) return;
+    setLoading(true); setError(null);
+    try {
+      const signal = parsedSignal();
+      let path: string;
+      let body: Record<string, unknown>;
+      if (signalTool === "filter") {
+        path = "measurement/filter"; body = { signal, sample_rate: 44100, center_hz: centerFrequency, fraction: 3 };
+      } else if (signalTool === "spectrogram") {
+        path = "measurement/spectrogram"; body = { signal: signal.slice(0, 65536), sample_rate: 44100, window_size: 256, hop_size: 128, max_frames: 1024 };
+      } else if (signalTool === "modal-q") {
+        path = "measurement/modal-q"; body = { signal, sample_rate: 44100, target_frequency_hz: centerFrequency, cycles_per_window: 4, dynamic_range_db: 30 };
+      } else {
+        path = "measurement/waterfall"; body = { ir: signal, sample_rate: 44100, duration_s: Math.min(0.18, signal.length / 44100), fraction: 1, time_step_s: 0.01 };
+      }
+      const response = await postAdvanced<Record<string, unknown>>(path, body, apiKey);
+      store(`measurement_${signalTool}`, response);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo analizar la señal."); }
+    finally { setLoading(false); }
+  }
+
+  async function runCalibration() {
+    if (!apiKey) return;
+    setLoading(true); setError(null);
+    try {
+      const measured = Object.fromEntries(["125", "250", "500", "1000", "2000", "4000"].map((band) => [band, measuredRt]));
+      const response = await postAdvanced<Record<string, unknown>>("measurement/calibrate", { ...roomPayload(room), measured_rt60: measured, iterations: 30 }, apiKey);
+      store("measurement_calibration", response);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo calibrar el modelo."); }
+    finally { setLoading(false); }
+  }
 
   return (
     <Card>
-      <CardTitle>
-        Medición y validación
-        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">PAID</span>
-      </CardTitle>
-
-      <div className="mb-4 flex gap-2">
-        {([
-          { key: "ess" as const, label: "ESS" },
-          { key: "waterfall" as const, label: "Waterfall" },
-          { key: "calibrate" as const, label: "Calibración" },
-        ]).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => { setTab(key); setResult(null); }}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab === key ? "bg-indigo-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "ess" && (
-        <div className="mb-4 grid grid-cols-3 gap-3">
+      <CardTitle>Medición y validación <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">PAID</span></CardTitle>
+      <FeatureGate feature="measurement">
+        <TabContainer compact activeTab={tool} onTabChange={(key) => { setTool(key as Tool); setResult(null); setError(null); }} label="Herramientas de medición" tabs={[{ key: "ess", label: "ESS / WAV" }, { key: "wav", label: "Importar WAV" }, { key: "signal", label: "Señal" }, { key: "calibrate", label: "Calibración" }]}>
           <div>
-            <label htmlFor="med-ess-f1" className="block text-xs text-gray-500">f₁ (Hz)</label>
-            <input id="med-ess-f1" type="number" min="1" max="1000" value={ess.f1}
-              className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              onChange={(e) => setEss(s => ({ ...s, f1: Number(e.target.value) }))} />
-          </div>
-          <div>
-            <label htmlFor="med-ess-f2" className="block text-xs text-gray-500">f₂ (Hz)</label>
-            <input id="med-ess-f2" type="number" min="100" max="48000" value={ess.f2}
-              className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              onChange={(e) => setEss(s => ({ ...s, f2: Number(e.target.value) }))} />
-          </div>
-          <div>
-            <label htmlFor="med-ess-duracion" className="block text-xs text-gray-500">Duración (s)</label>
-            <input id="med-ess-duracion" type="number" step="0.1" min="0.1" max="30" value={ess.dur}
-              className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              onChange={(e) => setEss(s => ({ ...s, dur: Number(e.target.value) }))} />
-          </div>
-        </div>
-      )}
-
-      {tab === "waterfall" && (
-        <div className="mb-4">
-          <label htmlFor="med-waterfall-ir" className="block text-xs text-gray-500">IR (valores separados por coma)</label>
-          <textarea
-            id="med-waterfall-ir"
-            rows={3}
-            placeholder="0,0.5,0.2,-0.1,..."
-            className="mt-1 w-full rounded border px-2 py-1 text-sm font-mono"
-            value={waterfallIr}
-            onChange={(e) => setWaterfallIr(e.target.value)}
-          />
-        </div>
-      )}
-
-      {tab === "calibrate" && (
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="med-cal-banda" className="block text-xs text-gray-500">Banda (Hz)</label>
-            <select id="med-cal-banda" className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              value={calFreq} onChange={(e) => setCalFreq(e.target.value)}>
-              {BANDAS.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="med-cal-rt60" className="block text-xs text-gray-500">RT60 medido (s)</label>
-            <input id="med-cal-rt60" type="number" step="0.01" min="0.01" max="10" value={calMeasured}
-              className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              onChange={(e) => setCalMeasured(e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      <button
-        onClick={calculate}
-        disabled={loading}
-        className="w-full rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
-      >
-        {loading ? "Calculando..." : "Ejecutar"}
-      </button>
-
-      {result && r && !("error" in result) && (
-        <div className="mt-4 space-y-3">
-          {tab === "ess" && (
-            <div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="info">{(r.sample_rate as number) / 1000} kHz</Badge>
-                <Badge variant="default">{r.duration_s as number}s</Badge>
-                <Badge variant="success">{r.total_samples as number} samples</Badge>
-              </div>
-              <div className="mt-2 h-20 rounded bg-gray-50 p-2">
-                <svg viewBox="0 0 500 60" className="h-full w-full">
-                  {(r.signal as number[])?.slice(0, 500).map((v, i) => (
-                    <line key={i} x1={i} y1={30 - v * 25} x2={i + 1} y2={30 - v * 25} stroke="#6366f1" strokeWidth={1} />
-                  ))}
-                </svg>
-              </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <NumberField id="med-ess-f1" label="f₁ (Hz)" value={ess.f1} onChange={(value) => setEss((current) => ({ ...current, f1: value }))} />
+              <NumberField id="med-ess-f2" label="f₂ (Hz)" value={ess.f2} onChange={(value) => setEss((current) => ({ ...current, f2: value }))} />
+              <NumberField id="med-ess-duracion" label="Duración (s)" value={ess.duration} step={0.1} onChange={(value) => setEss((current) => ({ ...current, duration: value }))} />
+              <NumberField id="med-ess-rate" label="Muestreo (Hz)" value={ess.sampleRate} onChange={(value) => setEss((current) => ({ ...current, sampleRate: value }))} />
+              <div><label htmlFor="med-ess-depth" className="block text-xs font-medium text-gray-600">Profundidad</label><select id="med-ess-depth" value={ess.bitDepth} onChange={(event) => setEss((current) => ({ ...current, bitDepth: Number(event.target.value) }))} className="mt-1 w-full rounded border px-2 py-1.5 text-sm"><option value="16">16 bit</option><option value="24">24 bit</option><option value="32">32 bit</option></select></div>
             </div>
-          )}
-
-          {tab === "waterfall" && (() => {
-            const bands = r.bands as Record<string, number[]>;
-            const time = r.time_ms as number[];
-            if (!bands || !time) return null;
-            const maxDecay = Math.min(...Object.values(bands).flat(), -60);
-            const minDecay = Math.max(...Object.values(bands).flat(), 0);
-            const range = maxDecay - minDecay || 1;
-            return (
-              <div>
-                <h4 className="mb-1 text-xs font-semibold text-gray-600">Decaimiento espectral</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[10px]">
-                    <thead>
-                      <tr>
-                        <th className="p-1 text-left text-gray-500">t\f</th>
-                        {BANDAS.map((b) => <th key={b} className="p-1 text-right text-gray-500">{b}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {time.filter((_, i) => i % Math.max(1, Math.floor(time.length / 20)) === 0).map((t, ti) => (
-                        <tr key={ti}>
-                          <td className="p-1 text-gray-400">{t.toFixed(0)}ms</td>
-                          {BANDAS.map((b) => {
-                            const val = bands[b]?.[ti * Math.max(1, Math.floor(time.length / 20))] ?? -60;
-                            const intensity = ((val - minDecay) / range);
-                            return (
-                              <td key={b} className="p-1 text-right font-mono"
-                                style={{ backgroundColor: `rgba(99, 102, 241, ${intensity})` }}>
-                                {val.toFixed(1)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })()}
-
-          {tab === "calibrate" && (() => {
-            const alphas = r.calibrated_alphas as Record<string, Record<string, number>>;
-            if (!alphas) return null;
-            return (
-              <div>
-                <h4 className="mb-1 text-xs font-semibold text-gray-600">α calibrados</h4>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="px-2 py-1 text-left text-xs text-gray-500">Superficie</th>
-                      {BANDAS.map((b) => (
-                        <th key={b} className="px-2 py-1 text-right text-xs text-gray-500">{b}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(alphas).map(([banda, surfs]) => (
-                      Object.entries(surfs).slice(0, 6).map(([nombre, alpha]) => (
-                        <tr key={`${banda}-${nombre}`} className="border-b">
-                          <td className="px-2 py-1 text-xs text-gray-700">{nombre}</td>
-                          {BANDAS.map((b) => (
-                            <td key={b} className="px-2 py-1 text-right text-xs font-mono">
-                              {b === banda ? alpha.toFixed(3) : "—"}
-                            </td>
-                          ))}
-                        </tr>
-                      ))
-                    )).slice(0, 6)}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+            <div className="mt-4 grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => void runEss()} disabled={loading} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Generar vista previa ESS</button><button type="button" onClick={() => void downloadEss()} disabled={loading} className="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-semibold text-indigo-700 disabled:opacity-50">Descargar ESS WAV</button></div>
+          </div>
+          <div>
+            <label htmlFor="med-wav-file" className="block text-xs font-medium text-gray-600">Archivo WAV PCM / float</label>
+            <input id="med-wav-file" type="file" accept="audio/wav,.wav" onChange={(event: ChangeEvent<HTMLInputElement>) => setWavFile(event.target.files?.[0] ?? null)} className="mt-1 block w-full rounded border p-2 text-sm" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => void runWav(false)} disabled={loading || !wavFile} className="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-semibold text-indigo-700 disabled:opacity-50">Importar metadatos y muestras</button><button type="button" onClick={() => void runWav(true)} disabled={loading || !wavFile} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Analizar ISO 3382</button></div>
+          </div>
+          <div>
+            <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+              <div><label htmlFor="med-signal" className="block text-xs font-medium text-gray-600">Muestras separadas por coma (vacío = señal de prueba determinista)</label><textarea id="med-signal" rows={3} value={signalText} onChange={(event) => setSignalText(event.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-xs" /></div>
+              <div><label htmlFor="med-signal-tool" className="block text-xs font-medium text-gray-600">Análisis</label><select id="med-signal-tool" value={signalTool} onChange={(event) => setSignalTool(event.target.value as SignalTool)} className="mt-1 w-full rounded border px-2 py-1.5 text-sm"><option value="filter">Filtro 1/3 octava</option><option value="spectrogram">Espectrograma</option><option value="modal-q">Q modal</option><option value="waterfall">Waterfall</option></select><label htmlFor="med-center" className="mt-3 block text-xs font-medium text-gray-600">Frecuencia central (Hz)</label><input id="med-center" type="number" value={centerFrequency} onChange={(event) => setCenterFrequency(Number(event.target.value))} className="mt-1 w-full rounded border px-2 py-1.5 text-sm" /></div>
+            </div>
+            <button type="button" onClick={() => void runSignal()} disabled={loading} className="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Analizar señal</button>
+          </div>
+          <div>
+            <p className="mb-3 text-xs leading-5 text-gray-600">Ajusta coeficientes de las seis superficies de la sala actual. Los diagnósticos muestran convergencia, error e identificabilidad; no convierten el modelo en una medición certificada.</p>
+            <NumberField id="med-cal-rt60" label="RT60 medido uniforme (s)" value={measuredRt} step={0.05} onChange={setMeasuredRt} />
+            <button type="button" onClick={() => void runCalibration()} disabled={loading} className="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Calibrar sala actual</button>
+          </div>
+        </TabContainer>
+        {loading && <p className="mt-3 text-sm text-indigo-700" role="status" aria-live="polite">Procesando medición…</p>}
+        <ToolError message={error} />
+        {result && <ToolResult result={result} title="Resultado de medición y diagnósticos" />}
+      </FeatureGate>
     </Card>
   );
+}
+
+function NumberField({ id, label, value, step = 1, onChange }: { id: string; label: string; value: number; step?: number; onChange: (value: number) => void }) {
+  return <div><label htmlFor={id} className="block text-xs font-medium text-gray-600">{label}</label><input id={id} type="number" step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded border px-2 py-1.5 text-sm" /></div>;
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

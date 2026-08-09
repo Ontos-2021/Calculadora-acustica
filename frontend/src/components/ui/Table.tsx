@@ -39,7 +39,7 @@ export function Table<T extends Record<string, unknown>>({
         </tbody>
       </table>
       {data.length > pageSize && (
-        <p className="mt-2 text-center text-xs text-gray-400">
+        <p className="mt-2 text-center text-xs text-gray-600">
           Mostrando {pageSize} de {data.length} resultados
         </p>
       )}

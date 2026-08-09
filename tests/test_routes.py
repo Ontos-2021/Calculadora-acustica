@@ -65,8 +65,8 @@ class TestAPI:
         response = client.post("/api/v1/calculate", json={})
         assert response.status_code == 422
 
-    def test_materials_endpoint(self, client):
-        response = client.get("/api/v1/materials")
+    def test_materials_endpoint(self, client, paid_headers):
+        response = client.get("/api/v1/materials", headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data) >= 5
@@ -84,15 +84,15 @@ class TestAPI:
         data = response.json()
         assert "home_studio" in data
 
-    def test_materials_categories(self, client):
-        response = client.get("/api/v1/materials/categories")
+    def test_materials_categories(self, client, paid_headers):
+        response = client.get("/api/v1/materials/categories", headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
         assert len(data) >= 8
 
-    def test_material_detail(self, client):
-        response = client.get("/api/v1/materials/Concreto")
+    def test_material_detail(self, client, paid_headers):
+        response = client.get("/api/v1/materials/Concreto", headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["nombre"] == "Concreto"
@@ -100,29 +100,29 @@ class TestAPI:
         assert "alpha_w" in data
         assert "categoria" in data
 
-    def test_material_detail_not_found(self, client):
-        response = client.get("/api/v1/materials/NoExiste")
+    def test_material_detail_not_found(self, client, paid_headers):
+        response = client.get("/api/v1/materials/NoExiste", headers=paid_headers)
         assert response.status_code == 404
 
-    def test_materials_search_by_category(self, client):
-        response = client.get("/api/v1/materials?categoria=Espumas")
+    def test_materials_search_by_category(self, client, paid_headers):
+        response = client.get("/api/v1/materials?categoria=Espumas", headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data) >= 2
 
-    def test_air_absorption(self, client):
+    def test_air_absorption(self, client, paid_headers):
         response = client.post("/api/v1/design/air-absorption", json={
             "humidity": 50, "temp_celsius": 20,
-        })
+        }, headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert "coeficientes" in data
         assert len(data["coeficientes"]) == 6
 
-    def test_audience_absorption(self, client):
+    def test_audience_absorption(self, client, paid_headers):
         response = client.post("/api/v1/design/audience-absorption", json={
             "num_people": 10,
-        })
+        }, headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 6

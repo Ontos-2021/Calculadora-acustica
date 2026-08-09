@@ -1,41 +1,34 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/test";
+import { encodePayload } from "./fixtures/helpers";
+import { SALA_BASE } from "./fixtures/payloads";
 
-test.describe("Error states", () => {
-  test("shows error when no data query param", async ({ page }) => {
+test.describe("Errores y recuperación", () => {
+  test("explica datos ausentes o base64url malformado", async ({ page }) => {
     await page.goto("/results");
-    await expect(page.getByText("No se encontraron datos de cálculo.")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("No se encontraron datos de cálculo.")).toBeVisible();
+    await page.goto("/results?data=not-valid!!!!");
+    await expect(page.getByText("Los datos del análisis están dañados o incompletos.")).toBeVisible();
   });
 
-  test("shows error on corrupt base64", async ({ page }) => {
-    // atob() throws DOMException; caught and rendered
-    await page.goto("/results?data=not-valid-base64!!!!");
-    // The error text is the browser's atob error, not a custom message
-    // Use the error container (red bg) as indicator
-    const errorBox = page.locator(".bg-red-50");
-    await expect(errorBox).toBeVisible({ timeout: 5000 });
-    // Volver link should be present
-    await expect(page.getByRole("link", { name: "Volver" })).toBeVisible();
+  test("muestra validación 422 y no la disfraza como fallo offline", async ({ page }) => {
+    test.info().annotations.push({ type: "expected-console-error", description: "status of 422" });
+    await page.goto(`/results?data=${encodePayload({ ...SALA_BASE, largo: 2000 })}`);
+    await expect(page.locator("main [role='alert']")).toContainText(/Revisa los datos ingresados|less than or equal/i);
+    await expect(page.getByText(/Motor FREE TypeScript/)).not.toBeVisible();
   });
 
-  test("handles invalid encoded JSON gracefully", async ({ page }) => {
-    const encoded = btoa("not-json");
-    await page.goto(`/results?data=${encoded}`);
-    // JSON.parse throws, caught and rendered
-    const errorBox = page.locator(".bg-red-50");
-    await expect(errorBox).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole("link", { name: "Volver" })).toBeVisible();
+  test("un fallo de red invoca el motor FREE real", async ({ page }) => {
+    test.info().annotations.push({ type: "expected-console-error", description: "ERR_CONNECTION_REFUSED" });
+    await page.route("**/api/v1/calculate", (route) => route.abort("connectionrefused"));
+    await page.route("**/api/v1/pressure-map", (route) => route.abort("connectionrefused"));
+    await page.goto(`/results?data=${encodePayload(SALA_BASE)}`);
+    await expect(page.getByText("RT60 Promedio")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("engine-source")).toContainText("Motor FREE TypeScript determinista");
+    const modeCount = Number(await page.getByText("Modos totales").locator("..").locator("p").nth(1).textContent());
+    expect(modeCount).toBeGreaterThan(0);
   });
 
-  test("shows error when backend is unreachable", async ({ page }) => {
-    await page.route("**/api/v1/**", (route) => route.abort("connectionrefused"));
-    const encoded = btoa(JSON.stringify({ largo: 5, ancho: 4, alto: 3, superficies: [{ material: "Concreto" }] }));
-    await page.goto(`/results?data=${encoded}`);
-    const errorBox = page.locator(".bg-red-50");
-    await expect(errorBox).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole("link", { name: "Volver" })).toBeVisible();
-  });
-
-  test("Volver button navigates to home from error", async ({ page }) => {
+  test("permite volver desde un error", async ({ page }) => {
     await page.goto("/results");
     await page.getByRole("link", { name: "Volver" }).click();
     await expect(page).toHaveURL("/");

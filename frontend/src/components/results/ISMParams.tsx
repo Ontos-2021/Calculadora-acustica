@@ -1,15 +1,16 @@
 import { Badge } from "@/components/ui/Badge";
 
 interface ISMParamsData {
-  EDT: number;
-  T20: number;
-  T30: number;
+  EDT: number | null;
+  T20: number | null;
+  T30: number | null;
   C80: number;
   C50: number;
   D50: number;
   Ts: number;
   ITDG: number | null;
   flutter_echo: { detected: boolean; frequency: number | null };
+  [key: string]: unknown;
 }
 
 export function ISMParams({ params }: { params: ISMParamsData }) {
@@ -35,12 +36,12 @@ export function ISMParams({ params }: { params: ISMParamsData }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {paramRows.map((p) => (
           <div key={p.label} className="rounded-lg border border-gray-200 bg-white p-2 text-center shadow-sm">
-            <p className="text-xs text-gray-400">{p.label}</p>
+            <p className="text-xs text-gray-600">{p.label}</p>
             <p className="text-lg font-bold text-indigo-600">
               {typeof p.value === "number" ? p.value.toFixed(2) : "—"}
-              <span className="ml-0.5 text-xs font-normal text-gray-400">{p.unit}</span>
+              <span className="ml-0.5 text-xs font-normal text-gray-600">{p.unit}</span>
             </p>
-            <p className="text-[10px] text-gray-400">{p.desc}</p>
+            <p className="text-[10px] text-gray-600">{p.desc}</p>
           </div>
         ))}
       </div>

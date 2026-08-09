@@ -63,30 +63,30 @@ class TestWavExport:
 
 
 class TestMeasurementAPI:
-    def test_ess_endpoint(self, client):
+    def test_ess_endpoint(self, client, paid_headers):
         response = client.post("/api/v1/measurement/ess", json={
             "f1_hz": 20, "f2_hz": 20000, "duration_s": 0.1, "sample_rate": 44100,
-        })
+        }, headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert "signal" in data
 
-    def test_waterfall_endpoint(self, client):
+    def test_waterfall_endpoint(self, client, paid_headers):
         ir = [0.0] * 500
         ir[50] = 1.0
         response = client.post("/api/v1/measurement/waterfall", json={
             "ir": ir, "sample_rate": 44100, "duration_s": 0.1,
-        })
+        }, headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert "bands" in data
 
-    def test_calibrate_endpoint(self, client):
+    def test_calibrate_endpoint(self, client, paid_headers):
         response = client.post("/api/v1/measurement/calibrate", json={
             "largo": 5, "ancho": 4, "alto": 3,
             "superficies": [{"material": "Concreto"}] * 6,
             "measured_rt60": {"500": 0.8},
-        })
+        }, headers=paid_headers)
         assert response.status_code == 200
         data = response.json()
         assert "calibrated_alphas" in data

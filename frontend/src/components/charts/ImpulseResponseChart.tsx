@@ -46,6 +46,7 @@ export function ImpulseResponseChart({
     ],
     series: [
       {
+        id: "impulso",
         type: "line",
         data: ir.slice(0, displayLen),
         symbol: "none",

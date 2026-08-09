@@ -1,41 +1,43 @@
-import { test, expect } from "@playwright/test";
-import { gotoResults, openTab } from "./fixtures/helpers";
-import { SALA_BASE } from "./fixtures/payloads";
+import { test, expect } from "./fixtures/test";
+import { activatePaidLicense, gotoResults, openTab } from "./fixtures/helpers";
+import { SALA_CON_USO } from "./fixtures/payloads";
 
-test.describe("Isolation tab", () => {
-  test.beforeEach(async ({ page }) => {
-    await gotoResults(page, SALA_BASE);
-    await openTab(page, "Aislamiento");
-  });
+test.describe("Aislamiento PAID", () => {
+  test.beforeEach(async ({ page }) => { await gotoResults(page, SALA_CON_USO); await activatePaidLicense(page); await openTab(page, "Aislamiento"); });
 
-  test("single panel calculator", async ({ page }) => {
-    await expect(page.getByText("Aislamiento acústico")).toBeVisible();
+  test("panel simple devuelve tercio de octava, STC y Rw", async ({ page }) => {
     await page.locator("#aisl-simple-masa").fill("100");
-    await page.locator("#aisl-simple-espesor").fill("0.15");
-    await page.getByRole("button", { name: "Calcular" }).click();
-    await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: "Calcular" })).toBeEnabled();
+    await page.locator("#aisl-simple-espesor").fill("0.12");
+    await page.getByRole("button", { name: "Calcular", exact: true }).click();
+    await expect(page.getByText("Pérdida por transmisión en tercio de octava")).toBeVisible({ timeout: 20_000 });
+    const result = page.getByText("Resultado de aislamiento y supuestos").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    await expect(result.locator("pre")).toContainText('"stc"');
+    await expect(result.locator("pre")).toContainText('"rw"');
   });
 
-  test("double panel calculator with stud checkbox", async ({ page }) => {
-    await page.getByRole("button", { name: "Doble hoja" }).click();
-    await page.locator("#aisl-doble-m1").fill("50");
-    await page.locator("#aisl-doble-m2").fill("30");
-    await page.locator("#aisl-doble-camara").fill("0.15");
-    await page.locator("#aisl-doble-stud").check();
-    await expect(page.locator("#aisl-doble-stud")).toBeChecked();
-    await page.getByRole("button", { name: "Calcular" }).click();
-    await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: "Calcular" })).toBeEnabled();
+  test("evalúa clasificación NR con una curva real", async ({ page }) => {
+    await page.getByRole("tab", { name: "NC / NR" }).click();
+    await page.getByRole("radio", { name: "NR", exact: true }).check();
+    await page.getByRole("button", { name: "Calcular", exact: true }).click();
+    const result = page.getByText("Resultado de aislamiento y supuestos").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    await expect(result.locator("pre")).toContainText('"nr"');
+    const payload = JSON.parse(await result.locator("pre").textContent() || "{}");
+    expect(payload.nr).toBeGreaterThan(0);
   });
 
-  test("NC calculator", async ({ page }) => {
-    await page.getByRole("button", { name: "Ruido NC" }).click();
-    await page.locator("#aisl-nc-125").fill("55");
-    await page.locator("#aisl-nc-500").fill("45");
-    await page.locator("#aisl-nc-4000").fill("30");
-    await page.getByRole("button", { name: "Calcular" }).click();
-    await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: "Calcular" })).toBeEnabled();
+  test("calcula atenuación de conducto y flanqueo", async ({ page }) => {
+    await page.getByRole("tab", { name: "Conducto" }).click();
+    await page.getByRole("button", { name: "Calcular", exact: true }).click();
+    let result = page.getByText("Resultado de aislamiento y supuestos").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    await expect(result.locator("pre")).toContainText("insertion_loss_db");
+    await page.getByRole("tab", { name: "Flancos" }).click();
+    await page.getByRole("button", { name: "Calcular", exact: true }).click();
+    result = page.getByText("Resultado de aislamiento y supuestos").locator("..");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    const payload = JSON.parse(await result.locator("pre").textContent() || "{}");
+    expect(payload.apparent_tl_db).toBeLessThan(55);
   });
 });

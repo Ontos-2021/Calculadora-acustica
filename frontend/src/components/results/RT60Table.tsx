@@ -51,7 +51,7 @@ export function RT60Table({
         </table>
       </div>
       {objetivo && (
-        <p className="mt-2 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-gray-600">
           Objetivo para: <Badge variant="info">{objetivo.label}</Badge>
           {" — "}diferencias &gt; 0.2s marcadas en rojo
         </p>

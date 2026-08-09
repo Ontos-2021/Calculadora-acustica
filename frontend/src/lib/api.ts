@@ -1,121 +1,226 @@
-import type { CalculateRequest, CalculateResponse, MaterialInfo } from "./types";
+import type {
+  CalculateRequest,
+  CalculateResponse,
+  InverseDesignResponse,
+  IRResponse,
+  LicenseStatus,
+  MaterialInfo,
+  PressureMapRequest,
+  PressureMapResponse,
+  RoomRequest,
+} from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+type ErrorKind = "network" | "unauthorized" | "forbidden" | "rate_limited" | "validation" | "http";
+type ResponseType = "json" | "blob" | "text";
+
+function normalizedApiRoot(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim() || "/api";
+  const root = configured.replace(/\/+$/, "");
+  if (/\/api\/v1$/i.test(root)) return root;
+  if (/\/api$/i.test(root)) return `${root}/v1`;
+  return `${root}/api/v1`;
+}
+
+export const API_ROOT = normalizedApiRoot();
+
+function apiUrl(path: string): string {
+  return `${API_ROOT}/${path.replace(/^\/+/, "")}`;
+}
+
+function errorDetail(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const detail = (payload as { detail?: unknown }).detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (!item || typeof item !== "object") return String(item);
+        const issue = item as { loc?: unknown[]; msg?: string };
+        const location = issue.loc?.slice(1).join(".");
+        return `${location ? `${location}: ` : ""}${issue.msg || "dato no válido"}`;
+      })
+      .join("; ");
+  }
+  return null;
+}
+
+function statusKind(status: number): ErrorKind {
+  if (status === 401) return "unauthorized";
+  if (status === 403) return "forbidden";
+  if (status === 429) return "rate_limited";
+  if (status === 400 || status === 422) return "validation";
+  return "http";
+}
+
+function statusMessage(status: number, detail: string | null): string {
+  const suffix = detail ? ` ${detail}` : "";
+  if (status === 401) return `La clave API no es válida, está inactiva o falta.${suffix}`.trim();
+  if (status === 403) return `La licencia no incluye esta función.${suffix}`.trim();
+  if (status === 429) return `Se alcanzó la cuota o el límite temporal de solicitudes.${suffix}`.trim();
+  if (status === 422) return `Revisa los datos ingresados.${suffix}`.trim();
+  return detail || `La API respondió con estado ${status}.`;
+}
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
+  readonly kind: ErrorKind;
+  readonly retryAfterSeconds: number | null;
+  readonly detail: string | null;
+
+  constructor(
+    public readonly status: number,
+    message: string,
+    options: { kind?: ErrorKind; retryAfterSeconds?: number | null; detail?: string | null; cause?: unknown } = {},
+  ) {
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.name = "ApiError";
+    this.kind = options.kind ?? statusKind(status);
+    this.retryAfterSeconds = options.retryAfterSeconds ?? null;
+    this.detail = options.detail ?? null;
+  }
+
+  get isNetworkFailure(): boolean {
+    return this.kind === "network";
   }
 }
 
-export async function calculate(
-  data: CalculateRequest,
-): Promise<CalculateResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/calculate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ApiError(
-      res.status,
-      err.detail || `Error ${res.status}`,
-    );
-  }
-  return res.json();
+interface ApiRequestOptions {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown | FormData;
+  apiKey?: string | null;
+  signal?: AbortSignal;
+  responseType?: ResponseType;
+  headers?: HeadersInit;
 }
 
-export async function fetchImpulseResponse(
-  data: {
-    largo: number;
-    ancho: number;
-    alto: number;
-    superficies: { material: string }[];
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (options.body !== undefined && !isForm) headers.set("Content-Type", "application/json");
+  if (options.apiKey) headers.set("X-API-Key", options.apiKey);
+  headers.set("Accept", options.responseType === "blob" ? "application/octet-stream, audio/wav" : "application/json");
+
+  const requestBody: BodyInit | undefined = options.body === undefined
+    ? undefined
+    : isForm
+      ? options.body as FormData
+      : JSON.stringify(options.body);
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      method: options.method ?? (options.body === undefined ? "GET" : "POST"),
+      headers,
+      body: requestBody,
+      signal: options.signal,
+      cache: "no-store",
+    });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+    throw new ApiError(0, "No se pudo conectar con el servidor.", {
+      kind: "network",
+      cause,
+    });
+  }
+
+  if (!response.ok) {
+    const payload = await response.clone().json().catch(() => null);
+    const detail = errorDetail(payload) || (await response.text().catch(() => "")) || null;
+    const retryHeader = response.headers.get("Retry-After");
+    throw new ApiError(response.status, statusMessage(response.status, detail), {
+      detail,
+      retryAfterSeconds: retryHeader && Number.isFinite(Number(retryHeader)) ? Number(retryHeader) : null,
+    });
+  }
+
+  if (response.status === 204) return undefined as T;
+  if (options.responseType === "blob") return (await response.blob()) as T;
+  if (options.responseType === "text") return (await response.text()) as T;
+  return (await response.json()) as T;
+}
+
+export function calculate(data: CalculateRequest, apiKey?: string | null, signal?: AbortSignal): Promise<CalculateResponse> {
+  return apiRequest<CalculateResponse>("calculate", { body: data, apiKey, signal });
+}
+
+export function fetchLicenseStatus(apiKey: string, signal?: AbortSignal): Promise<LicenseStatus> {
+  return apiRequest<LicenseStatus>("license/status", { apiKey, signal });
+}
+
+export function fetchMaterials(apiKey?: string | null): Promise<MaterialInfo[]> {
+  return apiRequest<MaterialInfo[]>(apiKey ? "materials" : "materials/defaults", { apiKey });
+}
+
+export function fetchMaterialCategories(apiKey?: string | null): Promise<Record<string, string[]>> {
+  return apiRequest<Record<string, string[]>>(
+    apiKey ? "materials/categories" : "materials/defaults/categories",
+    { apiKey },
+  );
+}
+
+export function fetchMaterialDetail(name: string, apiKey: string): Promise<MaterialInfo> {
+  return apiRequest<MaterialInfo>(`materials/${encodeURIComponent(name)}`, { apiKey });
+}
+
+export function fetchPressureMap(
+  data: PressureMapRequest,
+  options: { signal?: AbortSignal; apiKey?: string | null } = {},
+): Promise<PressureMapResponse> {
+  return apiRequest<PressureMapResponse>("pressure-map", { body: data, signal: options.signal, apiKey: options.apiKey });
+}
+
+export function fetchInverseDesign(
+  data: RoomRequest & { target_uso: string; include_placement?: boolean },
+  apiKey: string,
+): Promise<InverseDesignResponse> {
+  return apiRequest<InverseDesignResponse>("design/inverse", { body: data, apiKey });
+}
+
+export function fetchImpulseResponse(
+  data: RoomRequest & {
     source: [number, number, number];
     receiver: [number, number, number];
     max_order?: number;
+    sample_rate?: number;
+    duration_s?: number;
+    band?: string;
   },
-  apiKey?: string,
-): Promise<import("./types").IRResponse> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["X-API-Key"] = apiKey;
-
-  const res = await fetch(`${API_BASE}/api/v1/impulse-response`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ ...data, max_order: data.max_order ?? 8 }),
+  apiKey: string,
+): Promise<IRResponse> {
+  return apiRequest<IRResponse>("impulse-response", {
+    body: { ...data, max_order: data.max_order ?? 8 },
+    apiKey,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, err.detail || "Error al calcular ISM");
-  }
-  return res.json();
 }
 
-export async function fetchMaterials(): Promise<MaterialInfo[]> {
-  const res = await fetch(`${API_BASE}/api/v1/materials`);
-  if (!res.ok) throw new ApiError(res.status, "Error al cargar materiales");
-  return res.json();
+export function postAdvanced<T>(path: string, body: unknown, apiKey: string, signal?: AbortSignal): Promise<T> {
+  return apiRequest<T>(path, { body, apiKey, signal });
 }
 
-export async function fetchMaterialCategories(): Promise<Record<string, string[]>> {
-  const res = await fetch(`${API_BASE}/api/v1/materials/categories`);
-  if (!res.ok) throw new ApiError(res.status, "Error al cargar categorías");
-  return res.json();
+export function getAdvanced<T>(path: string, apiKey: string, signal?: AbortSignal): Promise<T> {
+  return apiRequest<T>(path, { apiKey, signal });
 }
 
-export async function fetchMaterialDetail(name: string): Promise<MaterialInfo> {
-  const res = await fetch(`${API_BASE}/api/v1/materials/${encodeURIComponent(name)}`);
-  if (!res.ok) throw new ApiError(res.status, `Material '${name}' no encontrado`);
-  return res.json();
+export async function downloadAdvanced(
+  path: string,
+  body: unknown,
+  apiKey: string,
+  fallbackFilename: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const blob = await apiRequest<Blob>(path, { body, apiKey, responseType: "blob" });
+  return { blob, filename: fallbackFilename };
 }
 
-export async function fetchInverseDesign(
-  data: {
-    largo: number;
-    ancho: number;
-    alto: number;
-    superficies: { material: string; alphas?: Record<string, number> }[];
-    target_uso: string;
-    include_placement?: boolean;
-  },
-): Promise<import("./types").InverseDesignResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/design/inverse`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+export function uploadWav(
+  file: File,
+  apiKey: string,
+  options: { analyze?: boolean; channel?: string; directDelayMs?: number } = {},
+): Promise<Record<string, unknown>> {
+  const data = new FormData();
+  data.append("file", file);
+  const query = new URLSearchParams({ channel: options.channel ?? "0" });
+  if (options.analyze) query.set("direct_delay_ms", String(options.directDelayMs ?? 0));
+  const action = options.analyze ? "analyze" : "import";
+  return apiRequest<Record<string, unknown>>(`measurement/wav/${action}?${query}`, {
+    body: data,
+    apiKey,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, err.detail || "Error en diseño inverso");
-  }
-  return res.json();
-}
-
-export interface PressureMapRequest {
-  largo: number;
-  ancho: number;
-  alto: number;
-  superficies: { material: string; alphas?: Record<string, number> }[];
-  ear_height?: number;
-  max_freq?: number;
-  grid_size?: number;
-  mode_indices?: [number, number, number];
-}
-
-export async function fetchPressureMap(
-  data: PressureMapRequest,
-): Promise<import("./types").PressureMapResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/pressure-map`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, err.detail || "Error al obtener mapa de presión");
-  }
-  return res.json();
 }

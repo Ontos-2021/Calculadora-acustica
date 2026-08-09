@@ -6,9 +6,9 @@ export function SummaryCards({ data }: { data: CalculateResponse }) {
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       <MetricCard
         label="RT60 Promedio"
-        value={data.rt60_promedio.toFixed(2)}
+        value={data.rt60_promedio.toFixed(1)}
         unit="s"
-        sublabel="Sabine"
+        sublabel="Sabine modelado · resolución 0,1 s"
         color="text-indigo-600"
       />
       <MetricCard

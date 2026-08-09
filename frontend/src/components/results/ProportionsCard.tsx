@@ -13,7 +13,7 @@ export function ProportionsCard({ proporciones }: { proporciones: ProporcionesRe
       <div className="mb-3 text-sm">
         <span className="text-gray-500">Más cercana: </span>
         <span className="font-medium text-indigo-600">{proporciones.mas_cercana}</span>
-        <span className="text-gray-400">
+        <span className="text-gray-600">
           {" "}(1 : {proporciones.proporcion_cercana[1]} : {proporciones.proporcion_cercana[2]})
         </span>
       </div>

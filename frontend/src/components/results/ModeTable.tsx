@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import type { Mode } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 
@@ -10,7 +10,7 @@ export function ModeTable({
   selectedFreq,
 }: {
   modos: Mode[];
-  onSelectMode?: (frecuencia: number) => void;
+  onSelectMode?: (mode: Mode) => void;
   selectedFreq?: number | null;
 }) {
   const [filterType, setFilterType] = useState<string>("all");
@@ -31,7 +31,7 @@ export function ModeTable({
 
   if (!modos || modos.length === 0) {
     return (
-      <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-400">
+      <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-600">
         No se encontraron modos de resonancia.
       </div>
     );
@@ -43,7 +43,7 @@ export function ModeTable({
         <Badge variant="success">Axiales (0 dB)</Badge>
         <Badge variant="warning">Tangenciales (−3 dB)</Badge>
         <Badge variant="default">Oblicuos (−6 dB)</Badge>
-        <span className="ml-auto text-xs text-gray-400">
+        <span className="ml-auto text-xs text-gray-600">
           {filtered.length} de {modos.length} modos
         </span>
       </div>
@@ -51,6 +51,7 @@ export function ModeTable({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select
           id="modos-tipo"
+          aria-label="Filtrar modos por tipo"
           className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
@@ -77,7 +78,7 @@ export function ModeTable({
           onChange={(e) => setFreqMax(e.target.value)}
         />
         {onSelectMode && (
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-600">
             Click en una fila para ver el mapa de presión del modo
           </span>
         )}
@@ -100,8 +101,17 @@ export function ModeTable({
             {filtered.map((m, i) => (
               <tr
                 key={i}
-                onClick={() => onSelectMode?.(m.frecuencia)}
-                className={`cursor-pointer border-b border-gray-100 transition-colors hover:bg-indigo-50/50 ${
+                onClick={() => onSelectMode?.(m)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectMode?.(m);
+                  }
+                }}
+                tabIndex={onSelectMode ? 0 : undefined}
+                aria-selected={selectedFreq === m.frecuencia}
+                aria-label={onSelectMode ? `Modo ${m.indices.join(", ")} a ${m.frecuencia.toFixed(1)} Hz; abrir mapa de presión` : undefined}
+                className={`${onSelectMode ? "cursor-pointer" : ""} border-b border-gray-100 transition-colors hover:bg-indigo-50/50 focus-visible:bg-indigo-50 ${
                   selectedFreq === m.frecuencia ? "bg-indigo-100" : ""
                 }`}
               >

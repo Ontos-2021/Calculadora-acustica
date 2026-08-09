@@ -1,8 +1,21 @@
+import math
+
 import pytest
 from acoustic_core.presets import (
-    MATERIALES_PRESETS, CATEGORIAS, search_materials,
-    classify_iso11654, calculate_air_absorption,
-    AudienceConfig, calculate_audience_absorption,
+    AIR_ABSORPTION_DEFAULT,
+    CATEGORIAS,
+    MATERIAL_CATALOG_METADATA,
+    MATERIALES_PRESETS,
+    AudienceConfig,
+    audience_absorption_result,
+    calculate_air_absorption,
+    calculate_air_attenuation,
+    calculate_audience_absorption,
+    classify_iso11654,
+    get_material_metadata,
+    iso11654_diagnostics,
+    material_catalog_records,
+    search_materials,
 )
 
 
@@ -34,6 +47,22 @@ class TestPresets:
     def test_material_has_categoria(self):
         for name, mat in MATERIALES_PRESETS.items():
             assert mat.categoria, f"{name} has no categoria"
+
+    def test_catalog_metadata_is_parallel_and_transparent(self):
+        assert set(MATERIAL_CATALOG_METADATA) == set(MATERIALES_PRESETS)
+        for name, material in MATERIALES_PRESETS.items():
+            record = get_material_metadata(name)
+            assert record.mounting_condition
+            assert record.data_status == "engineering_estimate_not_product_test"
+            assert "not" in record.provenance.lower()
+            assert record.uncertainty.expanded > 0
+            assert material.provenance == record.provenance
+            assert material.uncertainty == record.uncertainty
+
+    def test_catalog_helper_can_exclude_compatibility_aliases(self):
+        canonical = material_catalog_records(include_aliases=False)
+        assert len(canonical) == len(MATERIALES_PRESETS) - 8
+        assert all(record["alias_of"] is None for record in canonical)
 
     def test_search_by_category(self):
         results = search_materials(categoria="Espumas")
@@ -88,7 +117,55 @@ class TestISO11654:
 
     def test_rounding(self):
         w1, _ = classify_iso11654({"250": 0.32, "500": 0.33, "1000": 0.31, "2000": 0.32})
-        assert abs(w1 - 0.30) < 1e-10
+        # At 0.35 the three unfavorable deviations total 0.09, so the public
+        # reference-curve rule accepts 0.35 even though the arithmetic mean does not.
+        assert w1 == pytest.approx(0.35)
+
+    def test_public_reference_curve_example_and_shape_indicators(self):
+        result = iso11654_diagnostics({
+            "250": 0.35,
+            "500": 0.60,
+            "1000": 0.85,
+            "2000": 0.90,
+            "4000": 0.90,
+        })
+        assert result.alpha_w == pytest.approx(0.60)
+        assert result.iso_class == "C"
+        assert result.shifted_reference_curve == {
+            "250": 0.40,
+            "500": 0.60,
+            "1000": 0.60,
+            "2000": 0.60,
+            "4000": 0.50,
+        }
+        assert result.unfavorable_deviation_sum == pytest.approx(0.05)
+        assert result.shape_indicators == ("M", "H")
+        assert result.designation == "alpha_w = 0.60 (MH)"
+        assert "not" in result.implementation_note.lower()
+
+    def test_unfavorable_deviation_limit_is_inclusive(self):
+        result = iso11654_diagnostics({
+            "250": 0.55,
+            "500": 0.75,
+            "1000": 0.80,
+            "2000": 0.80,
+            "4000": 0.80,
+        })
+        assert result.alpha_w == pytest.approx(0.80)
+        assert result.unfavorable_deviation_sum == pytest.approx(0.10)
+
+    def test_diagnostics_requires_all_five_practical_coefficients(self):
+        with pytest.raises(ValueError, match="4000 Hz"):
+            iso11654_diagnostics({
+                "250": 0.5, "500": 0.5, "1000": 0.5, "2000": 0.5,
+            })
+
+    def test_legacy_wrapper_discloses_inferred_4000_in_diagnostics(self):
+        result = iso11654_diagnostics(
+            {"250": 0.5, "500": 0.5, "1000": 0.5, "2000": 0.5},
+            allow_legacy_4000_inference=True,
+        )
+        assert result.inferred_bands == ("4000",)
 
 
 class TestAirAbsorption:
@@ -102,10 +179,32 @@ class TestAirAbsorption:
         assert m4k > m125
 
     def test_default_values(self):
-        from acoustic_core.presets import AIR_ABSORPTION_DEFAULT
         assert len(AIR_ABSORPTION_DEFAULT) == 6
         for b, v in AIR_ABSORPTION_DEFAULT.items():
             assert v > 0
+
+    @pytest.mark.parametrize("humidity", [0.0, 100.0])
+    def test_humidity_endpoints_are_finite(self, humidity):
+        result = calculate_air_attenuation(4000, humidity, 20, distance_m=10)
+        assert math.isfinite(result.attenuation_db_per_m)
+        assert result.attenuation_db_per_m > 0
+        assert 0 < result.energy_ratio <= 1
+
+    def test_api_friendly_result_has_consistent_units(self):
+        result = calculate_air_attenuation(1000, 50, 20, distance_m=25)
+        assert result.attenuation_db == pytest.approx(
+            result.attenuation_db_per_m * 25
+        )
+        assert result.energy_decay_m_inv == pytest.approx(
+            2 * result.amplitude_attenuation_np_per_m
+        )
+        assert calculate_air_absorption(1000, 50, 20) == pytest.approx(
+            result.energy_decay_m_inv
+        )
+
+    def test_invalid_humidity_is_rejected(self):
+        with pytest.raises(ValueError, match="between 0 and 100"):
+            calculate_air_attenuation(1000, 100.1, 20)
 
 
 class TestAudienceAbsorption:
@@ -127,3 +226,29 @@ class TestAudienceAbsorption:
         standing = calculate_audience_absorption(AudienceConfig(num_people=10, seated=False))
         for b in ["125", "250", "500"]:
             assert standing[b] < seated[b], f"Standing should absorb less at {b} Hz"
+
+    def test_upholstery_and_occupancy_change_seated_load(self):
+        upholstered = calculate_audience_absorption(
+            AudienceConfig(num_people=100, seated=True, upholstered=True, occupied=0.5)
+        )
+        hard = calculate_audience_absorption(
+            AudienceConfig(num_people=100, seated=True, upholstered=False, occupied=0.5)
+        )
+        full = calculate_audience_absorption(
+            AudienceConfig(num_people=100, seated=True, upholstered=True, occupied=1.0)
+        )
+        assert all(upholstered[band] > hard[band] for band in upholstered)
+        assert all(full[band] > upholstered[band] for band in full)
+
+    def test_detailed_audience_result_exposes_units_and_assumptions(self):
+        result = audience_absorption_result(
+            AudienceConfig(num_people=20, seated=True, upholstered=False, occupied=0.75)
+        )
+        assert result.occupied_people_equivalent == 15
+        assert result.empty_seats_equivalent == 5
+        assert result.assumptions
+        assert "estimate" in result.estimate_label
+
+    def test_invalid_occupancy_rejected(self):
+        with pytest.raises(ValueError, match="between 0 and 1"):
+            AudienceConfig(num_people=10, occupied=1.1)

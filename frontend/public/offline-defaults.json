@@ -1,0 +1,7 @@
+{
+  "schema_version": "acoustic-offline-defaults/1.0",
+  "materials": ["Concreto", "Madera", "Yeso", "Vidrio", "Alfombra gruesa", "Cortina pesada", "Panel acústico", "Espuma acústica"],
+  "bands_hz": [125, 250, 500, 1000, 2000, 4000],
+  "environment": { "temperature_c": 20, "relative_humidity": 50, "pressure_pa": 101325 },
+  "engine": "offline-typescript-free@1.0.0"
+}

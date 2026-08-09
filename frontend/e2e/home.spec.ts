@@ -1,62 +1,50 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/test";
+import { activatePaidLicense } from "./fixtures/helpers";
 
-test.describe("Home page — RoomForm", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-  });
+test.describe("Página principal y catálogo", () => {
+  test.beforeEach(async ({ page }) => { await page.goto("/"); });
 
-  test("renders form with dimension inputs", async ({ page }) => {
+  test("muestra formulario anónimo con ambiente y seis superficies", async ({ page }) => {
     await expect(page.locator("#dim-largo")).toBeVisible();
-    await expect(page.locator("#dim-ancho")).toBeVisible();
-    await expect(page.locator("#dim-alto")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Calcular" })).toBeVisible();
+    await expect(page.locator("#env-temperature")).toHaveValue("20");
+    await expect(page.locator("#env-humidity")).toHaveValue("50");
+    await expect(page.locator("select[id^='mat-']")).toHaveCount(7); // six surfaces plus category filter
+    await expect(page.getByRole("button", { name: "Calcular" })).toBeEnabled();
   });
 
-  test("loads 46 materials from API into surface selects", async ({ page }) => {
-    const surfaceSelects = ["#mat-frente", "#mat-contrafrente", "#mat-lat-izquierdo", "#mat-lat-derecho", "#mat-piso", "#mat-techo"];
-    // Note: IDs match RoomForm's naming: lowercase, spaces/dots → hyphens
-    // Wait for materials to load — check #mat-frente has >30 native options
-    await page.waitForFunction(() => {
-      const el = document.querySelector("#mat-frente") as HTMLSelectElement | null;
-      return el !== null && el.options.length > 30;
-    }, { timeout: 20000 });
-    // Verify by reading native options directly (more reliable than locator chain)
-    const count = await page.locator("#mat-frente").evaluate((el: HTMLSelectElement) => el.options.length);
-    expect(count).toBeGreaterThan(30);
-    // Other selects should also be present
-    for (const sel of surfaceSelects.slice(1)) {
-      await expect(page.locator(sel)).toBeVisible();
-    }
+  test("carga únicamente los ocho materiales FREE sin clave", async ({ page }) => {
+    await page.waitForFunction(() => (document.querySelector("#mat-frente") as HTMLSelectElement)?.options.length === 8);
+    await expect(page.locator("#mat-frente option")).toHaveCount(8);
+    await expect(page.getByText("Catálogo FREE anónimo")).toBeVisible();
   });
 
-  test("filter narrows material options", async ({ page }) => {
-    await page.locator("#mat-frente").waitFor({ state: "visible" });
-    await page.locator("#mat-filter").fill("Espuma");
-    await page.waitForTimeout(300);
-    const options = await page.locator("#mat-frente").locator("option").allTextContents();
-    expect(options.some((o) => o.includes("Espuma"))).toBeTruthy();
+  test("una licencia PAID validada amplía el catálogo y muestra cuotas", async ({ page }) => {
+    await activatePaidLicense(page);
+    await page.waitForFunction(() => (document.querySelector("#mat-frente") as HTMLSelectElement)?.options.length > 30);
+    await expect(page.getByText("Catálogo completo de la licencia")).toBeVisible();
+    await expect(page.getByText("Funciones habilitadas")).toBeVisible();
+    await expect(page.getByText("solicitudes/min")).toBeVisible();
   });
 
-  test("filter by category narrows material options", async ({ page }) => {
-    await page.locator("#mat-frente").waitFor({ state: "visible" });
-    await page.locator("#mat-categoria").selectOption("Madera");
-    await page.waitForTimeout(300);
-    const options = await page.locator("#mat-frente").locator("option").allTextContents();
-    expect(options.some((o) => o.includes("Madera"))).toBeTruthy();
+  test("recupera materiales incluidos cuando falla la red y permite reintentar", async ({ page }) => {
+    test.info().annotations.push({ type: "expected-console-error", description: "ERR_CONNECTION_REFUSED" });
+    await page.route("**/api/v1/materials/defaults**", (route) => route.abort("connectionrefused"));
+    await page.reload();
+    await expect(page.getByText(/Se usan los materiales FREE incluidos/)).toBeVisible();
+    await expect(page.locator("#mat-frente option")).toHaveCount(8);
+    await expect(page.getByRole("button", { name: "Reintentar catálogo" })).toBeVisible();
   });
 
-  test("toggle custom alpha inputs per surface", async ({ page }) => {
-    const firstToggle = page.getByRole("button", { name: "α personalizado" }).first();
-    await firstToggle.click();
-    await expect(page.locator("[id^='alpha-']").first()).toBeVisible();
-    // After click the same button now says "Ocultar α"
-    const hideBtn = page.getByRole("button", { name: "Ocultar α" }).first();
-    await hideBtn.click();
-    await expect(page.locator("[id^='alpha-']").first()).not.toBeVisible();
+  test("edita coeficientes personalizados con controles etiquetados", async ({ page }) => {
+    await page.getByRole("button", { name: "α personalizado" }).first().click();
+    await page.locator("#alpha-frente-500").fill("0.42");
+    await expect(page.locator("#alpha-frente-500")).toHaveValue("0.42");
+    await page.getByRole("button", { name: "Ocultar α" }).first().click();
+    await expect(page.locator("#alpha-frente-500")).not.toBeVisible();
   });
 
-  test("offline badge is visible", async ({ page }) => {
-    // The badge text depends on online state; just check it exists
-    await expect(page.getByText("Online").or(page.getByText("Sin conexión"))).toBeVisible();
+  test("indica conectividad y preparación real del núcleo offline", async ({ page }) => {
+    await expect(page.locator("[data-offline-ready]")).toContainText(/Online/);
+    await expect(page.locator("[data-offline-ready='true']")).toBeVisible({ timeout: 15_000 });
   });
 });

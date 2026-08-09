@@ -18,9 +18,9 @@ export function MetricCard({
       </p>
       <p className={`mt-1 text-3xl font-bold ${color}`}>
         {value}
-        {unit && <span className="ml-1 text-lg font-normal text-gray-400">{unit}</span>}
+        {unit && <span className="ml-1 text-lg font-normal text-gray-600">{unit}</span>}
       </p>
-      {sublabel && <p className="mt-0.5 text-xs text-gray-400">{sublabel}</p>}
+      {sublabel && <p className="mt-0.5 text-xs text-gray-600">{sublabel}</p>}
     </div>
   );
 }

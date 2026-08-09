@@ -1,89 +1,42 @@
-import { test, expect } from "@playwright/test";
-import { gotoResults, openTab } from "./fixtures/helpers";
-import { SALA_BASE, SALA_CON_USO } from "./fixtures/payloads";
+import { test, expect } from "./fixtures/test";
+import { activatePaidLicense, gotoResults, openTab } from "./fixtures/helpers";
+import { SALA_CON_USO } from "./fixtures/payloads";
 
-test.describe("Design tab", () => {
-  test("inverse design appears when uso is set", async ({ page }) => {
+test.describe("Diseño y tratamiento PAID", () => {
+  test.beforeEach(async ({ page }) => {
     await gotoResults(page, SALA_CON_USO);
+    await activatePaidLicense(page);
     await openTab(page, "Diseño");
-    // Either inverse calc completed or RT60 already meets target
-    const timeout = 10000;
-    const yaCumple = page.getByText("La sala ya cumple con el RT60 objetivo");
-    const invHeading = page.getByRole("heading", { name: "Diseño inverso", exact: true });
-    try {
-      await yaCumple.waitFor({ state: "visible", timeout });
-    } catch {
-      await expect(invHeading).toBeVisible({ timeout });
-    }
   });
 
-  test("inverse design not shown without uso", async ({ page }) => {
-    await gotoResults(page, SALA_BASE);
-    await openTab(page, "Diseño");
-    await expect(page.locator("text=La sala ya cumple con el RT60 objetivo")).not.toBeVisible();
+  test("verifica un tratamiento contra la sala actual", async ({ page }) => {
+    await page.getByRole("tab", { name: "Verificar plan" }).click();
+    await page.locator("#treatment-area").fill("12");
+    await page.getByRole("button", { name: "Verificar plan" }).click();
+    const result = page.getByText("Diagnóstico de tratamiento").locator("..");
+    await expect(result).toContainText("predicted_rt60_s", { timeout: 20_000 });
+    await expect(result).toContainText("all_bands_meet");
   });
 
-  test.describe("Absorber calculators", () => {
-    test.beforeEach(async ({ page }) => {
-      await gotoResults(page, SALA_BASE);
-      await openTab(page, "Diseño");
-    });
-
-    test("porous calculator predicts alpha", async ({ page }) => {
-      await expect(page.getByText("Calculadora de absorbentes")).toBeVisible();
-      await page.locator("#abs-poroso-espesor").fill("0.1");
-      await page.locator("#abs-poroso-flow").fill("5000");
-      await page.locator("#abs-poroso-densidad").fill("50");
-      await page.getByRole("button", { name: "Predecir α(f)" }).click();
-      await page.waitForTimeout(1500);
-      await expect(page.getByRole("button", { name: "Predecir α(f)" })).toBeEnabled();
-    });
-
-    test("helmholtz calculator", async ({ page }) => {
-      await page.getByRole("button", { name: "Helmholtz" }).click();
-      await page.locator("#abs-helmholtz-cuello-area").fill("0.02");
-      await page.locator("#abs-helmholtz-cavidad-vol").fill("0.2");
-      await page.locator("#abs-helmholtz-cuello-len").fill("0.03");
-      await page.locator("#abs-helmholtz-cuello-radio").fill("0.015");
-      await page.getByRole("button", { name: "Predecir α(f)" }).click();
-      await page.waitForTimeout(1500);
-      await expect(page.getByRole("button", { name: "Predecir α(f)" })).toBeEnabled();
-    });
-
-    test("membrane calculator", async ({ page }) => {
-      await page.getByRole("button", { name: "Membrana" }).click();
-      await page.locator("#abs-membrana-masa").fill("15");
-      await page.locator("#abs-membrana-camara").fill("0.08");
-      await page.getByRole("button", { name: "Predecir α(f)" }).click();
-      await page.waitForTimeout(1500);
-      await expect(page.getByRole("button", { name: "Predecir α(f)" })).toBeEnabled();
-    });
+  test("calcula absorbente poroso y expone límites de validez", async ({ page }) => {
+    await page.getByRole("tab", { name: "Absorbentes" }).click();
+    await page.locator("#abs-poroso-espesor").fill("0.1");
+    await page.locator("#abs-poroso-flow").fill("8000");
+    await page.getByRole("button", { name: "Predecir α(f)" }).click();
+    await expect(page.getByText("Modelo y límites de validez")).toBeVisible();
+    const alpha500 = Number(await page.getByLabel("Coeficientes de absorción calculados").locator("tbody td").nth(2).textContent());
+    expect(alpha500).toBeGreaterThan(0);
+    await expect(page.getByText("Ver datos y diagnósticos completos")).toBeVisible();
   });
 
-  test.describe("Diffuser calculators", () => {
-    test.beforeEach(async ({ page }) => {
-      await gotoResults(page, SALA_BASE);
-      await openTab(page, "Diseño");
-    });
-
-    test("QRD calculator", async ({ page }) => {
-      await page.getByRole("button", { name: "QRD (1D)" }).click();
-      await page.locator("#dif-qrd-freq").fill("800");
-      await page.locator("#dif-qrd-n").fill("13");
-      await page.locator("#dif-qrd-ancho").fill("0.04");
-      await page.getByRole("button", { name: "Calcular difusor" }).click();
-      await page.waitForTimeout(1500);
-      await expect(page.getByRole("button", { name: "Calcular difusor" })).toBeEnabled();
-    });
-
-    test("Skyline calculator", async ({ page }) => {
-      await page.getByRole("button", { name: "Skyline (2D)" }).click();
-      await page.locator("#dif-skyline-freq").fill("800");
-      await page.locator("#dif-skyline-grid").fill("5");
-      await page.locator("#dif-skyline-celda").fill("0.04");
-      await page.getByRole("button", { name: "Calcular difusor" }).click();
-      await page.waitForTimeout(1500);
-      await expect(page.getByRole("button", { name: "Calcular difusor" })).toBeEnabled();
-    });
+  test("genera QRD con diagnóstico de manufacturabilidad", async ({ page }) => {
+    await page.getByRole("tab", { name: "Difusores" }).click();
+    await page.locator("#dif-qrd-freq").fill("800");
+    await page.locator("#dif-qrd-n").fill("13");
+    await page.getByRole("button", { name: "Calcular difusor" }).click();
+    const result = page.getByText("Construcción, rango útil y manufacturabilidad").locator("..");
+    await expect(result).toContainText("design freq hz");
+    await result.getByText("Ver datos y diagnósticos completos").click();
+    await expect(result.locator("pre")).toContainText("manufacturability");
   });
 });

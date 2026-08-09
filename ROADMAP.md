@@ -2,6 +2,33 @@
 
 > **Visión**: Herramienta profesional de diseño acústico arquitectónico, freemium, con arquitectura moderna (API + frontend React/Next.js), capacidad offline (PWA) y soporte normativo ISO + ASTM.
 
+## Estado de implementación (2026-08-09)
+
+La especificación histórica se conserva debajo. Esta tabla es el estado autoritativo del producto:
+
+| Entrega | Estado | Implementación principal |
+|---|---|---|
+| Fase 0: núcleo científico | Completada | Espectros por banda, ambiente, incertidumbre, RT60, modos ponderados, Bonello, Schroeder y Bolt en `acoustic_core/` |
+| Fase 1: plataforma | Completada | FastAPI v1, Next.js static export, PWA, API keys, PostgreSQL/SQLite, Redis, almacenamiento y worker |
+| Fase 2: presión e ISM | Completada | Mapas modales, posición de escucha, ISM de orden total y métricas ISO 3382 con diagnóstico de regresión |
+| Fase 3: tratamiento | Completada | Catálogo con procedencia, ISO 11654, diseño inverso, verificación, absorbentes y difusores |
+| Fase 4: aislamiento | Completada | TL, doble hoja, ASTM E413 STC, ISO 717-1 Rw/C/Ctr, NC/NR, conductos y flancos |
+| Fase 5: medición | Completada | ESS/Farina, WAV RIFF, deconvolución, filtros, espectrograma, Q modal, flutter y calibración |
+| Fase 6: numérico | Completada | Paquete server-only `acoustic_numerics/` con NumPy/SciPy: impedancia, FEM 2D, SAH-BVH y modelo híbrido |
+| Freemium y API pública | Completada | FREE anónimo, PAID/RESEARCH por API key, entitlements, cuotas, rate limiting y jobs |
+| Frontend profesional | Completada | Feature gates, exportación PDF/CSV/JSON/LaTeX/Typst, accesibilidad móvil y fallback offline FREE |
+
+Validación automatizada actual:
+
+- Backend: 500 pruebas pytest.
+- Navegador: 47 pruebas Playwright contra el export estático de producción.
+- Frontend: build Next.js y TypeScript correcto.
+- Infraestructura: `docker compose config --quiet` correcto.
+- PWA: navegación y motor FREE verificados sin conexión; assets online servidos
+  con estrategia network-first para evitar chunks obsoletos.
+
+Límite normativo: las implementaciones siguen fórmulas y referencias públicas de ISO, ASTM, ANSI y literatura técnica, pero sus resultados son estimaciones de ingeniería. No constituyen medición, ensayo, certificación ni declaración de cumplimiento. Una certificación futura requeriría vectores oficiales licenciados, ensayos interlaboratorio y validación de campo independiente.
+
 ---
 
 ## Fase 0 — Consolidación del núcleo actual (ahora)
@@ -393,7 +420,7 @@ Estado del arte académico. Correspondería a una publicación científica.
 | Fase 0 | Bonello automático | ✓ | |
 | Fase 2 | RT60 por bandas + comparación objetivo | ✓ | |
 | Fase 2 | Mapas de presión modal | ✓ | |
-| — | **Todo lo anterior, offline (WASM)** | ✓ | |
+| — | **Todo lo anterior, offline (motor TypeScript determinista)** | ✓ | |
 | Fase 2 | ISM → Respuesta al impulso | | ✓ |
 | Fase 2 | C80, C50, D50, Ts, EDT | | ✓ |
 | Fase 2 | ITDG + flutter echo | | ✓ |

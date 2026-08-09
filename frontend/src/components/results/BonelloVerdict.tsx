@@ -22,7 +22,7 @@ export function BonelloVerdict({ bonello }: { bonello: BonelloResult }) {
           Considere ajustar las proporciones de la sala.
         </div>
       )}
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200">
+      <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200" tabIndex={0} aria-label="Bandas del criterio de Bonello">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
             <tr>

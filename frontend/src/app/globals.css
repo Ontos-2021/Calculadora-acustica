@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  min-width: 320px;
+}
+
+body {
+  overflow-wrap: anywhere;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(165 180 252);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .echarts-for-react {
+    min-height: 330px;
+  }
+}

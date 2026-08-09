@@ -9,3 +9,5 @@ venv/
 frontend/.next/
 frontend/out/
 frontend/node_modules/
+acoustic.db
+storage/

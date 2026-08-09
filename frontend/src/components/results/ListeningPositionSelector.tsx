@@ -76,18 +76,18 @@ export function ListeningPositionSelector({
 
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-lg bg-white p-2 text-center shadow-sm">
-          <p className="text-xs text-gray-400">Presión acumulada</p>
+          <p className="text-xs text-gray-600">Presión acumulada</p>
           <p className={`text-lg font-bold ${pressureColor}`}>
             {pressurePercent}%
           </p>
         </div>
         <div className="rounded-lg bg-white p-2 text-center shadow-sm">
-          <p className="text-xs text-gray-400">Uniformidad espectral</p>
+          <p className="text-xs text-gray-600">Uniformidad espectral</p>
           <p className="text-lg font-bold text-indigo-600">{flatnessPercent}%</p>
         </div>
       </div>
 
-      <p className="mt-2 text-[10px] text-gray-400">
+      <p className="mt-2 text-[10px] text-gray-600">
         Arrastre los sliders para encontrar la mejor posición de escucha.
         Menor presión acumulada en nodos; mayor uniformidad = respuesta más plana.
       </p>

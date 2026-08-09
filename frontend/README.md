@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend de Calculadora Acústica
 
-## Getting Started
+Aplicación Next.js 16 con App Router, React 19, Tailwind CSS 4, ECharts 6 y
+export estático. Consume la API FastAPI, conserva la clave de licencia solo en
+`sessionStorage` y ofrece un motor TypeScript determinista para cálculos FREE
+sin conexión.
 
-First, run the development server:
+## Desarrollo
+
+El backend debe estar disponible en `http://127.0.0.1:8000`:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir http://localhost:3000. En desarrollo, `next.config.ts` reenvía `/api/*`
+al backend. Para usar otro destino:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+API_PROXY_URL=http://127.0.0.1:9000 npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Build y pruebas
 
-## Learn More
+```bash
+npm run build
+npm run test:e2e
+```
 
-To learn more about Next.js, take a look at the following resources:
+`npm run test:e2e` genera el export en `.next-e2e`, prepara licencias PAID y
+RESEARCH deterministas, levanta una API aislada en `127.0.0.1:8010` y sirve el
+frontend con proxy en `127.0.0.1:3100`. La suite contiene 47 pruebas de cálculo,
+tratamiento, aislamiento, medición, métodos numéricos, exportación, PWA,
+accesibilidad y respuesta móvil.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Offline/PWA
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+El Service Worker precachea el shell, los datos FREE y los chunks necesarios.
+Con red disponible, los assets usan network-first para no reutilizar chunks
+obsoletos de Turbopack. Sin red, la navegación y los assets recurren a la caché
+y los cálculos FREE usan `src/lib/offline.ts`.
 
-## Deploy on Vercel
+## Estructura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+src/app/          Rutas y providers
+src/components/   Formularios, resultados, gráficos y licencia
+src/context/      Estado de licencia de sesión
+src/lib/          Cliente API, transporte y motor offline
+e2e/              Playwright, fixtures y servidores aislados
+public/           Manifest, Service Worker y datos offline
+```
