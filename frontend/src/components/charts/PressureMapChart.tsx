@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import ReactECharts from "echarts-for-react";
 import type { Mode, PressureMapResponse } from "@/lib/types";
+import { EChart } from "./EChart";
 
 export function PressureMapChart({
   data,
@@ -69,7 +69,7 @@ export function PressureMapChart({
       orient: "horizontal",
       left: "center",
       bottom: 0,
-      inRange: { color: signed ? ["#1a237e", "#42a5f5", "#ffffff", "#ef5350", "#b71c1c"] : ["#f8fafc", "#93c5fd", "#4f46e5", "#7f1d1d"] },
+      inRange: { color: signed ? ["#0369a1", "#bae6fd", "#ffffff", "#fecdd3", "#be123c"] : ["#fafafa", "#99f6e4", "#0f766e", "#18181b"] },
       text: signed ? ["Antinodo +", "Antinodo −"] : ["Mayor magnitud", "Nodo / menor"],
       textStyle: { fontSize: 10 },
     },
@@ -124,7 +124,7 @@ export function PressureMapChart({
       </div>
 
       <div role="img" aria-label={`${quantityLabel}. Recomendación en X ${data.optimal_listening.x.toFixed(2)} m, Y ${data.optimal_listening.y.toFixed(2)} m.`} className={loading ? "opacity-55" : ""}>
-        <ReactECharts option={option} style={{ height: 440 }} notMerge lazyUpdate />
+        <EChart option={option} className="h-[clamp(22rem,70vw,30rem)]" />
       </div>
       <figcaption className="text-xs leading-5 text-gray-500">
         Plano a {data.ear_height.toFixed(2)} m. {selectedMode === "all" ? `${data.num_modos} modos hasta ${data.max_freq.toFixed(1)} Hz; la fase relativa no se modela.` : `Modo ${data.max_freq.toFixed(1)} Hz con presión normalizada con signo.`}

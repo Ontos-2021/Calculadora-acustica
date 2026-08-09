@@ -1,23 +1,26 @@
 import { test, expect } from "./fixtures/test";
-import { activatePaidLicense, API_URL, gotoResults, PAID_KEY } from "./fixtures/helpers";
+import { activatePaidLicense, API_URL, gotoResults, openTab, PAID_KEY } from "./fixtures/helpers";
 import { SALA_BASE } from "./fixtures/payloads";
 
 test.describe("Licencia y autorización", () => {
   test("una cadena cualquiera no desbloquea herramientas", async ({ page }) => {
     test.info().annotations.push({ type: "expected-console-error", description: "status of 401" });
     await gotoResults(page, SALA_BASE);
-    await page.locator("#license-key").fill("not-a-license");
-    await page.getByRole("button", { name: "Activar" }).click();
+    await page.getByTestId("license-trigger").click();
     const license = page.getByRole("region", { name: "Licencia y clave API" });
+    await license.locator("#license-key").fill("not-a-license");
+    await license.getByRole("button", { name: "Activar" }).click();
     await expect(license.getByRole("alert")).toContainText("clave API no es válida");
-    await page.getByRole("tab", { name: "Diseño" }).click();
-    await expect(page.getByText(/Activa una licencia con la función inverse_design/)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await openTab(page, "Tratamiento");
+    await expect(page.getByText(/Activa una licencia con inverse_design para calcular con tu sala/)).toBeVisible();
   });
 
   test("valida PAID, persiste solo en sesión y revoca localmente", async ({ page }) => {
     await gotoResults(page, SALA_BASE);
     await activatePaidLicense(page);
     await page.reload();
+    await page.getByTestId("license-trigger").click();
     const license = page.getByRole("region", { name: "Licencia y clave API" });
     await expect(license.getByText("PAID", { exact: true })).toBeVisible({ timeout: 15_000 });
     await license.getByRole("button", { name: "Revocar sesión local" }).click();

@@ -56,7 +56,9 @@ export function TabContainer({
   return (
     <div>
       <div
-        className={`mb-4 flex max-w-full gap-1 overflow-x-auto border-b border-gray-200 ${compact ? "pb-1" : ""}`}
+        className={compact
+          ? "scrollbar-thin mb-4 flex max-w-full gap-1 overflow-x-auto rounded-lg border bg-surface-muted p-1"
+          : "scrollbar-thin sticky top-14 z-30 -mx-3 mb-5 flex max-w-[calc(100%+1.5rem)] gap-1 overflow-x-auto border-b bg-canvas/95 px-3 backdrop-blur sm:-mx-5 sm:max-w-[calc(100%+2.5rem)] sm:px-5 lg:static lg:mx-0 lg:max-w-full lg:rounded-lg lg:border lg:bg-surface lg:p-1"}
         role="tablist"
         aria-label={label}
       >
@@ -72,15 +74,15 @@ export function TabContainer({
             tabIndex={activeKey === tab.key ? 0 : -1}
             onClick={() => select(tab.key)}
             onKeyDown={(event) => keyboardNavigate(event, index)}
-            className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors ${
+            className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
               activeKey === tab.key
-                ? "border-b-2 border-indigo-500 text-indigo-700"
-                : "text-gray-500 hover:text-gray-800"
+                ? "bg-teal-700 text-white shadow-sm dark:bg-teal-500 dark:text-zinc-950"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
             }`}
           >
             {tab.label}
             {tab.badge && (
-              <span className="ml-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-700">
+              <span className="ml-1 rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-900 dark:bg-zinc-700 dark:text-white">
                 {tab.badge}
               </span>
             )}

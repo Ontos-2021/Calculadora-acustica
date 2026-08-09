@@ -25,7 +25,7 @@ export function LicenseManager() {
   }
 
   return (
-    <section className="mx-auto mt-4 max-w-3xl rounded-xl border border-white/25 bg-white/95 p-3 text-left shadow-sm" aria-label="Licencia y clave API">
+    <section className="rounded-xl border bg-surface-muted p-3 text-left" aria-label="Licencia y clave API">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Licencia</span>
         {status ? (
@@ -36,7 +36,7 @@ export function LicenseManager() {
             <span className="min-w-0 flex-1 truncate text-xs text-gray-600">
               {status.email} · clave {status.key_prefix}…
             </span>
-            <button type="button" className="text-xs font-medium text-indigo-600 hover:text-indigo-800" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+            <button type="button" className="text-xs font-medium text-teal-700 hover:text-teal-900 dark:text-teal-400" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
               {expanded ? "Ocultar detalle" : "Ver detalle"}
             </button>
             <button type="button" className="text-xs font-medium text-red-600 hover:text-red-800" onClick={revokeLocal}>
@@ -54,9 +54,9 @@ export function LicenseManager() {
               value={candidate}
               onChange={(event) => setCandidate(event.target.value)}
               placeholder="Clave API PAID / RESEARCH"
-              className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-surface px-3 py-2 text-xs text-foreground focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20 dark:border-zinc-700"
             />
-            <button type="submit" disabled={validating} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button type="submit" disabled={validating} className="rounded-md bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50 dark:bg-teal-500 dark:text-zinc-950">
               {validating ? "Validando…" : "Activar"}
             </button>
           </form>

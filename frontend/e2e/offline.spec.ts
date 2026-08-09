@@ -12,12 +12,12 @@ test.describe("Instalación offline FREE", () => {
     await context.setOffline(true);
     await page.goto(resultsUrl, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("RT60 Promedio")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("engine-source")).toContainText("Motor FREE TypeScript determinista");
+    await expect(page.getByTestId("engine-source")).toContainText("Estimación local");
     const rtText = await page.getByText("RT60 Promedio").locator("..").locator("p").nth(1).textContent();
     expect(parseFloat(rtText || "0")).toBeGreaterThan(0);
     await page.getByRole("tab", { name: "Presión" }).click();
     await expect(page.getByText("Magnitud RMS modal ponderada normalizada")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Recomendación de escucha basada en uniformidad espectral")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Recomendación de posición de escucha" })).toContainText("Posición de escucha más uniforme");
   });
 
   test("service worker evita cachear métodos no GET y versiona los cachés", async ({ request }) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
+import { EChart } from "./EChart";
 
 export function ImpulseResponseChart({
   ir,
@@ -59,11 +59,9 @@ export function ImpulseResponseChart({
   };
 
   return (
-    <ReactECharts
+    <EChart
       option={option}
-      style={{ height: 300 }}
-      notMerge
-      lazyUpdate
+      className="h-[clamp(18rem,50vw,22rem)]"
     />
   );
 }

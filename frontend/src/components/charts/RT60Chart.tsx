@@ -1,16 +1,16 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
+import { EChart } from "./EChart";
 import type { RT60Bandas } from "@/lib/types";
 
 const BANDAS = ["125", "250", "500", "1000", "2000", "4000"];
 const METODOS = ["Sabine", "Eyring", "Millington", "FitzRoy"] as const;
 type Metodo = (typeof METODOS)[number];
 const COLORES: Record<Metodo, string> = {
-  Sabine: "#e74c3c",
-  Eyring: "#3498db",
-  Millington: "#2ecc71",
-  FitzRoy: "#f39c12",
+  Sabine: "#0f766e",
+  Eyring: "#0284c7",
+  Millington: "#7c3aed",
+  FitzRoy: "#d97706",
 };
 
 export function RT60Chart({ data }: { data: RT60Bandas }) {
@@ -54,11 +54,9 @@ export function RT60Chart({ data }: { data: RT60Bandas }) {
   };
 
   return (
-    <ReactECharts
+    <EChart
       option={option}
-      style={{ height: 380 }}
-      notMerge
-      lazyUpdate
+      className="h-[clamp(20rem,55vw,24rem)]"
       key="rt60-chart"
     />
   );

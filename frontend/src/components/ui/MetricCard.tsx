@@ -3,7 +3,7 @@ export function MetricCard({
   value,
   unit,
   sublabel,
-  color = "text-gray-800",
+  color = "text-foreground",
 }: {
   label: string;
   value: string | number;
@@ -12,15 +12,15 @@ export function MetricCard({
   color?: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+    <div className="rounded-[var(--radius-card)] border bg-surface p-4 text-left shadow-[var(--shadow-panel)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">
         {label}
       </p>
-      <p className={`mt-1 text-3xl font-bold ${color}`}>
+      <p className={`data-value mt-2 text-2xl font-bold tracking-tight ${color}`}>
         {value}
-        {unit && <span className="ml-1 text-lg font-normal text-gray-600">{unit}</span>}
+        {unit && <span className="ml-1 text-sm font-medium text-muted">{unit}</span>}
       </p>
-      {sublabel && <p className="mt-0.5 text-xs text-gray-600">{sublabel}</p>}
+      {sublabel && <p className="mt-1 text-xs text-muted">{sublabel}</p>}
     </div>
   );
 }

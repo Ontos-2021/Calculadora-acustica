@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { PDFParse } from "pdf-parse";
 import { test, expect } from "./fixtures/test";
-import { activatePaidLicense, gotoResults } from "./fixtures/helpers";
+import { activatePaidLicense, gotoResults, openTab } from "./fixtures/helpers";
 import { SALA_CON_USO } from "./fixtures/payloads";
 
 test.describe("Exportación profesional", () => {
@@ -10,7 +10,8 @@ test.describe("Exportación profesional", () => {
   test("JSON conserva esquema, entrada y resultados completos", async ({ page }) => {
     await page.getByRole("tab", { name: "Presión" }).click();
     await expect(page.getByText("Magnitud RMS modal ponderada normalizada")).toBeVisible({ timeout: 20_000 });
-    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "JSON completo" }).click()]);
+    await openTab(page, "Avanzado");
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "JSON", exact: true }).click()]);
     const payload = JSON.parse(await readFile((await download.path())!, "utf8"));
     expect(payload.schema_version).toBe("acoustic-report/2.0");
     expect(payload.input.superficies).toHaveLength(6);
@@ -24,7 +25,8 @@ test.describe("Exportación profesional", () => {
   test("CSV incluye metadata, materiales, RT, modos y presión", async ({ page }) => {
     await page.getByRole("tab", { name: "Presión" }).click();
     await expect(page.getByText("Magnitud RMS modal ponderada normalizada")).toBeVisible({ timeout: 20_000 });
-    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "CSV completo" }).click()]);
+    await openTab(page, "Avanzado");
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "CSV", exact: true }).click()]);
     const csv = await readFile((await download.path())!, "utf8");
     expect(csv).toContain("acoustic-report/2.0");
     expect(csv).toContain('"input","surface_0","material","Concreto"');
@@ -34,6 +36,7 @@ test.describe("Exportación profesional", () => {
   });
 
   test("LaTeX y Typst contienen procedencia y no certificación", async ({ page }) => {
+    await openTab(page, "Avanzado");
     const [latexDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "LaTeX" }).click()]);
     const latex = await readFile((await latexDownload.path())!, "utf8");
     expect(latex).toContain("\\documentclass");
@@ -47,9 +50,10 @@ test.describe("Exportación profesional", () => {
   });
 
   test("PDF se descarga y su texto incluye entrada, advertencia y procedencia", async ({ page }) => {
+    await openTab(page, "Avanzado");
     const link = page.locator('a[download="informe-acustico-profesional.pdf"]');
     await expect(link).toBeVisible({ timeout: 20_000 });
-    await expect(link).toHaveText("Descargar PDF", { timeout: 20_000 });
+    await expect(link).toHaveText("PDF", { timeout: 20_000 });
     const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
     const parser = new PDFParse({ data: await readFile((await download.path())!) });
     try {

@@ -1,63 +1,75 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { CalculateRequest, SurfaceInput, MaterialInfo } from "@/lib/types";
-import { fetchMaterials, fetchMaterialCategories } from "@/lib/api";
+import type { CalculateRequest, MaterialInfo, SurfaceInput } from "@/lib/types";
+import { fetchMaterialCategories, fetchMaterials } from "@/lib/api";
 import { offlineDefaultMaterials, offlineMaterialCategories } from "@/lib/offline";
 import { encodeRequestData } from "@/lib/transport";
 import { useLicense } from "@/context/LicenseProvider";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { Field, Input, Select } from "@/components/ui/Field";
 
-const BANDAS = ["125", "250", "500", "1000", "2000", "4000"];
-const SUP_NOMBRES = ["Frente", "Contrafrente", "Lat. Izquierdo", "Lat. Derecho", "Piso", "Techo"];
-
-const USOS: Record<string, string> = {
-  home_studio: "Home Studio / Grabación",
-  sala_conferencias: "Sala de conferencias",
-  aula: "Aula",
-  teatro: "Teatro",
-  sala_conciertos: "Sala de conciertos",
-  iglesia: "Iglesia / Culto",
-  home_theater: "Home Theater",
-  restaurante: "Restaurante",
+const BANDS = ["125", "250", "500", "1000", "2000", "4000"];
+const SURFACES = ["Frente", "Contrafrente", "Lat. Izquierdo", "Lat. Derecho", "Piso", "Techo"];
+const USES: Record<string, string> = {
+  home_studio: "Home Studio / Grabación", sala_conferencias: "Sala de conferencias", aula: "Aula",
+  teatro: "Teatro", sala_conciertos: "Sala de conciertos", iglesia: "Iglesia / Culto",
+  home_theater: "Home Theater", restaurante: "Restaurante",
 };
 
-const ISO_COLORS: Record<string, string> = {
-  A: "bg-green-100 text-green-800",
-  B: "bg-blue-100 text-blue-800",
-  C: "bg-yellow-100 text-yellow-800",
-  D: "bg-orange-100 text-orange-800",
-  E: "bg-red-100 text-red-800",
-};
+export const ROOM_PRESETS: Array<{ name: string; description: string; request: CalculateRequest }> = [
+  { name: "Home studio", description: "4,2 × 3,4 × 2,6 m", request: roomPreset(4.2, 3.4, 2.6, "home_studio", ["Panel acústico", "Madera", "Yeso", "Yeso", "Alfombra gruesa", "Panel acústico"]) },
+  { name: "Aula", description: "9 × 7 × 3,2 m", request: roomPreset(9, 7, 3.2, "aula", ["Yeso", "Yeso", "Yeso", "Vidrio", "Alfombra gruesa", "Panel acústico"]) },
+  { name: "Sala de conferencias", description: "12 × 8 × 3,5 m", request: roomPreset(12, 8, 3.5, "sala_conferencias", ["Madera", "Panel acústico", "Yeso", "Yeso", "Alfombra gruesa", "Panel acústico"]) },
+];
 
-interface FormData {
-  largo: string;
-  ancho: string;
-  alto: string;
-  uso: string;
-  materiales: string[];
-  alphas: Record<string, Record<string, string>>;
-  temperature: string;
-  humidity: string;
-  pressure: string;
-  includeAir: boolean;
+function roomPreset(largo: number, ancho: number, alto: number, uso: string, materials: string[]): CalculateRequest {
+  return { largo, ancho, alto, uso, superficies: materials.map((material) => ({ material })), environment: { temperature_c: 20, relative_humidity: 50, pressure_pa: 101325 }, include_air_attenuation: false };
 }
 
-function MaterialBadge({ alpha_w, iso_class }: { alpha_w: number | null; iso_class: string }) {
-  if (iso_class === "No clasificado" || !iso_class) return null;
-  const color = ISO_COLORS[iso_class] || "bg-gray-100 text-gray-800";
-  return (
-    <span className={`ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
-      {iso_class} (α_w={alpha_w?.toFixed(2)})
-    </span>
-  );
+interface FormState {
+  largo: string; ancho: string; alto: string; uso: string; materials: string[];
+  alphas: Record<string, Record<string, string>>; temperature: string; humidity: string; pressure: string; includeAir: boolean;
 }
 
-export function RoomForm() {
+function toForm(request?: CalculateRequest | null): FormState {
+  return {
+    largo: request ? String(request.largo) : "", ancho: request ? String(request.ancho) : "", alto: request ? String(request.alto) : "",
+    uso: request?.uso || "", materials: request?.superficies.map((surface) => surface.material) || Array(6).fill("Concreto"),
+    alphas: Object.fromEntries((request?.superficies || []).map((surface, index) => [`sup_${index}`, Object.fromEntries(Object.entries(surface.alphas || {}).map(([band, value]) => [band, String(value)]))])),
+    temperature: String(request?.environment.temperature_c ?? 20), humidity: String(request?.environment.relative_humidity ?? 50),
+    pressure: String(request?.environment.pressure_pa ?? 101325), includeAir: request?.include_air_attenuation ?? false,
+  };
+}
+
+function requestFromForm(form: FormState): CalculateRequest | null {
+  const largo = Number(form.largo), ancho = Number(form.ancho), alto = Number(form.alto);
+  const temperature = Number(form.temperature), humidity = Number(form.humidity), pressure = Number(form.pressure);
+  if (![largo, ancho, alto].every((value) => Number.isFinite(value) && value > 0)) return null;
+  if (!Number.isFinite(temperature) || temperature <= -273.15 || temperature > 100 || !Number.isFinite(humidity) || humidity < 0 || humidity > 100 || !Number.isFinite(pressure) || pressure <= 0) return null;
+  const superficies: SurfaceInput[] = form.materials.map((material, index) => {
+    const alpha = form.alphas[`sup_${index}`] || {};
+    const parsed = Object.fromEntries(BANDS.flatMap((band) => {
+      const value = Number(alpha[band]);
+      return alpha[band] !== undefined && Number.isFinite(value) && value >= 0 && value <= 1 ? [[band, value]] : [];
+    }));
+    return { material, ...(Object.keys(parsed).length ? { alphas: parsed } : {}) };
+  });
+  return { largo, ancho, alto, superficies, environment: { temperature_c: temperature, relative_humidity: humidity, pressure_pa: pressure }, include_air_attenuation: form.includeAir, ...(form.uso ? { uso: form.uso } : {}) };
+}
+
+export function RoomForm({ initialRequest, onRequestChange, onCalculate, progressive = false }: {
+  initialRequest?: CalculateRequest | null;
+  onRequestChange?: (request: CalculateRequest) => void;
+  onCalculate?: (request: CalculateRequest) => void;
+  progressive?: boolean;
+} = {}) {
   const router = useRouter();
   const { apiKey, status } = useLicense();
   const hasFullCatalog = Boolean(apiKey && status?.entitlements.includes("materials"));
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState(() => toForm(initialRequest));
   const [error, setError] = useState<string | null>(null);
   const [materials, setMaterials] = useState<MaterialInfo[]>([]);
   const [categories, setCategories] = useState<Record<string, string[]>>({});
@@ -66,345 +78,101 @@ export function RoomForm() {
   const [retryCatalog, setRetryCatalog] = useState(0);
   const [filter, setFilter] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [form, setForm] = useState<FormData>({
-    largo: "",
-    ancho: "",
-    alto: "",
-    uso: "",
-    materiales: Array(6).fill("Concreto"),
-    alphas: {},
-    temperature: "20",
-    humidity: "50",
-    pressure: "101325",
-    includeAir: false,
-  });
   const [showAlpha, setShowAlpha] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    const request = requestFromForm(form);
+    if (!request || !onRequestChange) return;
+    const timer = window.setTimeout(() => onRequestChange(request), 120);
+    return () => window.clearTimeout(timer);
+  }, [form, onRequestChange]);
 
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
-      setMaterialsLoading(true);
-      setMaterialsError(null);
-      const catalogKey = hasFullCatalog ? apiKey : null;
+      setMaterialsLoading(true); setMaterialsError(null);
       try {
-        const [mats, cats] = await Promise.all([
-          fetchMaterials(catalogKey),
-          fetchMaterialCategories(catalogKey),
-        ]);
-        if (controller.signal.aborted) return;
-        setMaterials(mats);
-        setCategories(cats);
+        const catalogKey = hasFullCatalog ? apiKey : null;
+        const [items, groups] = await Promise.all([fetchMaterials(catalogKey), fetchMaterialCategories(catalogKey)]);
+        if (!controller.signal.aborted) { setMaterials(items); setCategories(groups); }
       } catch (cause) {
-        if (controller.signal.aborted) return;
-        setMaterials(offlineDefaultMaterials());
-        setCategories(offlineMaterialCategories());
-        setMaterialsError(
-          `${cause instanceof Error ? cause.message : "No se pudo cargar el catálogo."} Se usan los materiales FREE incluidos en la aplicación.`,
-        );
-      } finally {
-        if (!controller.signal.aborted) setMaterialsLoading(false);
-      }
+        if (!controller.signal.aborted) {
+          setMaterials(offlineDefaultMaterials()); setCategories(offlineMaterialCategories());
+          setMaterialsError(`${cause instanceof Error ? cause.message : "No se pudo cargar el catálogo."} Se usan los materiales FREE incluidos en la aplicación.`);
+        }
+      } finally { if (!controller.signal.aborted) setMaterialsLoading(false); }
     }
-    void load();
-    return () => controller.abort();
+    void load(); return () => controller.abort();
   }, [apiKey, hasFullCatalog, retryCatalog]);
 
-  const filteredMaterials = materials.filter((m) => {
-    if (filter && !m.nombre.toLowerCase().includes(filter.toLowerCase())) return false;
-    if (selectedCategory && m.categoria !== selectedCategory) return false;
-    return true;
-  });
+  const updateMaterial = useCallback((index: number, material: string) => setForm((current) => {
+    const next = [...current.materials]; next[index] = material; return { ...current, materials: next };
+  }), []);
+  const grouped = materials.filter((material) => (!filter || material.nombre.toLowerCase().includes(filter.toLowerCase())) && (!selectedCategory || material.categoria === selectedCategory))
+    .reduce<Record<string, MaterialInfo[]>>((groups, material) => { (groups[material.categoria] ||= []).push(material); return groups; }, {});
+  const dimensionsValid = Boolean(requestFromForm({ ...form, temperature: "20", humidity: "50", pressure: "101325" }));
 
-  const grouped = filteredMaterials.reduce<Record<string, MaterialInfo[]>>((acc, m) => {
-    (acc[m.categoria] ||= []).push(m);
-    return acc;
-  }, {});
-
-  const updateMaterial = useCallback((i: number, val: string) => {
-    setForm((f) => {
-      const mats = [...f.materiales];
-      mats[i] = val;
-      return { ...f, materiales: mats };
-    });
-  }, []);
-
-  const updateAlpha = useCallback((i: number, banda: string, val: string) => {
-    setForm((f) => {
-      const key = `sup_${i}`;
-      const current = { ...(f.alphas[key] || {}) };
-      current[banda] = val;
-      return { ...f, alphas: { ...f.alphas, [key]: current } };
-    });
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-
-      const largo = parseFloat(form.largo);
-      const ancho = parseFloat(form.ancho);
-      const alto = parseFloat(form.alto);
-
-      if (!largo || !ancho || !alto || largo <= 0 || ancho <= 0 || alto <= 0) {
-        setError("Las dimensiones deben ser números positivos.");
-        return;
-      }
-
-      const superficies: SurfaceInput[] = form.materiales.map((mat, i) => {
-        const alphas: Record<string, number> = {};
-        const key = `sup_${i}`;
-        const custom = form.alphas[key];
-        if (custom) {
-          for (const banda of BANDAS) {
-            const v = parseFloat(custom[banda]);
-            if (!isNaN(v) && v >= 0 && v <= 1) alphas[banda] = v;
-          }
-        }
-        return { material: mat, ...(Object.keys(alphas).length ? { alphas } : {}) };
-      });
-
-      const temperature = parseFloat(form.temperature);
-      const humidity = parseFloat(form.humidity);
-      const pressure = parseFloat(form.pressure);
-      if (
-        !Number.isFinite(temperature) || temperature <= -273.15 || temperature > 100 ||
-        !Number.isFinite(humidity) || humidity < 0 || humidity > 100 ||
-        !Number.isFinite(pressure) || pressure <= 0
-      ) {
-        setError("Revisa temperatura, humedad relativa y presión atmosférica.");
-        return;
-      }
-
-      const request: CalculateRequest = {
-        largo,
-        ancho,
-        alto,
-        superficies,
-        environment: {
-          temperature_c: temperature,
-          relative_humidity: humidity,
-          pressure_pa: pressure,
-        },
-        include_air_attenuation: form.includeAir,
-      };
-      if (form.uso) request.uso = form.uso;
-
-      setLoading(true);
-      const encoded = encodeRequestData(request);
-      router.push(`/results?data=${encoded}`);
-    },
-    [form, router],
-  );
+  function submit(event: FormEvent) {
+    event.preventDefault(); setError(null);
+    const request = requestFromForm(form);
+    if (!request) { setError("Las dimensiones deben ser números positivos. Revisa también temperatura, humedad y presión."); return; }
+    if (onCalculate) onCalculate(request);
+    else router.push(`/results?data=${encodeRequestData(request)}`);
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="assertive">
-          {error}
-        </div>
-      )}
-
-      <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Dimensiones de la sala
-        </h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {["largo", "ancho", "alto"].map((dim) => (
-            <div key={dim}>
-              <label htmlFor={`dim-${dim}`} className="mb-1 block text-sm font-medium text-gray-700">
-                {dim.charAt(0).toUpperCase() + dim.slice(1)} (m)
-              </label>
-              <input
-                id={`dim-${dim}`}
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                placeholder={`ej: ${dim === "largo" ? "8.5" : dim === "ancho" ? "6.0" : "3.0"}`}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                value={form[dim as keyof FormData] as string}
-                onChange={(e) => setForm((f) => ({ ...f, [dim]: e.target.value }))}
-              />
-            </div>
+    <form onSubmit={submit} className="space-y-6" data-testid="room-editor">
+      {error && <Alert variant="danger" role="alert" aria-live="assertive">{error}</Alert>}
+      <fieldset>
+        <legend className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">1 · Dimensiones</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {(["largo", "ancho", "alto"] as const).map((dimension) => (
+            <Field key={dimension} htmlFor={`dim-${dimension}`} label={`${dimension[0].toUpperCase()}${dimension.slice(1)} (m)`}>
+              <Input id={`dim-${dimension}`} type="number" inputMode="decimal" step="0.01" min="0.01" required placeholder={dimension === "largo" ? "8,5" : dimension === "ancho" ? "6,0" : "3,0"} value={form[dimension]} onChange={(event) => setForm((current) => ({ ...current, [dimension]: event.target.value }))} />
+            </Field>
           ))}
         </div>
-      </div>
-
-      <fieldset>
-        <legend className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Ambiente del modelo
-        </legend>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="env-temperature" className="mb-1 block text-sm font-medium text-gray-700">Temperatura (°C)</label>
-            <input id="env-temperature" type="number" min="-50" max="100" step="0.1" value={form.temperature}
-              onChange={(event) => setForm((current) => ({ ...current, temperature: event.target.value }))}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label htmlFor="env-humidity" className="mb-1 block text-sm font-medium text-gray-700">Humedad relativa (%)</label>
-            <input id="env-humidity" type="number" min="0" max="100" step="1" value={form.humidity}
-              onChange={(event) => setForm((current) => ({ ...current, humidity: event.target.value }))}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label htmlFor="env-pressure" className="mb-1 block text-sm font-medium text-gray-700">Presión (Pa)</label>
-            <input id="env-pressure" type="number" min="10000" max="2000000" step="1" value={form.pressure}
-              onChange={(event) => setForm((current) => ({ ...current, pressure: event.target.value }))}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-          </div>
-        </div>
-        <label className="mt-3 flex items-start gap-2 text-xs text-gray-600">
-          <input type="checkbox" checked={form.includeAir} onChange={(event) => setForm((current) => ({ ...current, includeAir: event.target.checked }))} className="mt-0.5" />
-          Incluir atenuación del aire en RT60. Es más relevante a alta frecuencia y en recintos grandes; depende de T, HR y presión.
-        </label>
-        <p className="mt-2 text-xs leading-5 text-gray-500">
-          El modelo supone condiciones uniformes y estacionarias. La incertidumbre de materiales, montaje, ocupación y geometría real suele superar el efecto de pequeñas variaciones ambientales.
-        </p>
       </fieldset>
 
-      <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Materiales por superficie
-        </h3>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="text-gray-500">
-            {hasFullCatalog ? "Catálogo completo de la licencia" : "Catálogo FREE anónimo"}
-          </span>
-          {materialsError && (
-            <button type="button" className="font-medium text-indigo-600 hover:text-indigo-800" onClick={() => setRetryCatalog((value) => value + 1)}>
-              Reintentar catálogo
-            </button>
-          )}
-        </div>
-        {materialsError && (
-          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="status" aria-live="polite">
-            {materialsError}
-          </p>
-        )}
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input
-            id="mat-filter"
-            type="text"
-            placeholder="Filtrar materiales..."
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          <select
-            id="mat-categoria"
-            aria-label="Filtrar materiales por categoría"
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="">Todas las categorías</option>
-            {Object.keys(categories).map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SUP_NOMBRES.map((nombre, i) => {
-            const supId = `mat-${nombre.toLowerCase().replace(/[\s.]+/g, '-')}`;
-            return (
-            <div key={i}>
-              <label htmlFor={supId} className="mb-1 block text-sm font-medium text-gray-700">
-                {nombre}
-              </label>
-              <select
-                id={supId}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                value={form.materiales[i]}
-                onChange={(e) => updateMaterial(i, e.target.value)}
-              >
-                {materialsLoading && materials.length === 0 ? (
-                  <option>Cargando...</option>
-                ) : (
-                  Object.entries(grouped).map(([cat, mats]) => (
-                    <optgroup key={cat} label={cat}>
-                      {mats.map((m) => (
-                        <option key={m.nombre} value={m.nombre}>
-                          {m.nombre}{m.iso_class && m.iso_class !== "No clasificado" ? ` [${m.iso_class}]` : ""}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))
-                )}
-              </select>
-              {form.materiales[i] && (
-                <MaterialBadge
-                  alpha_w={materials.find((m) => m.nombre === form.materiales[i])?.alpha_w ?? null}
-                  iso_class={materials.find((m) => m.nombre === form.materiales[i])?.iso_class ?? ""}
-                />
-              )}
-              <button
-                type="button"
-                className="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
-                onClick={() => setShowAlpha((s) => ({ ...s, [i]: !s[i] }))}
-              >
-                {showAlpha[i] ? "Ocultar α" : "α personalizado"}
-              </button>
-              {showAlpha[i] && (
-                <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-gray-50 p-2">
-                  {BANDAS.map((banda) => {
-                    const alphaId = `alpha-${nombre.toLowerCase().replace(/[\s.]+/g, '-')}-${banda}`;
-                    return (
-                    <div key={banda}>
-                      <label htmlFor={alphaId} className="text-[10px] text-gray-500">{banda} Hz</label>
-                      <input
-                        id={alphaId}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="1"
-                        placeholder="α"
-                        className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                        value={form.alphas[`sup_${i}`]?.[banda] ?? ""}
-                        onChange={(e) => updateAlpha(i, banda, e.target.value)}
-                      />
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            );
-          })}
-        </div>
-      </div>
+      {(!progressive || dimensionsValid) && <>
+        <details className="group" open={!progressive}>
+          <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">2 · Ambiente <span className="float-right text-teal-700 group-open:rotate-180">⌄</span></summary>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Field htmlFor="env-temperature" label="Temperatura °C"><Input id="env-temperature" type="number" min="-50" max="100" step="0.1" value={form.temperature} onChange={(event) => setForm((current) => ({ ...current, temperature: event.target.value }))} /></Field>
+            <Field htmlFor="env-humidity" label="Humedad %"><Input id="env-humidity" type="number" min="0" max="100" value={form.humidity} onChange={(event) => setForm((current) => ({ ...current, humidity: event.target.value }))} /></Field>
+            <Field htmlFor="env-pressure" label="Presión Pa"><Input id="env-pressure" type="number" min="10000" max="2000000" value={form.pressure} onChange={(event) => setForm((current) => ({ ...current, pressure: event.target.value }))} /></Field>
+          </div>
+          <label className="mt-3 flex gap-2 text-xs text-zinc-600 dark:text-zinc-400"><input type="checkbox" checked={form.includeAir} onChange={(event) => setForm((current) => ({ ...current, includeAir: event.target.checked }))} /> Incluir atenuación del aire en RT60</label>
+        </details>
 
-      <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Uso de la sala
-        </h3>
-        <select
-          id="sala-uso"
-          aria-label="Uso de la sala"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          value={form.uso}
-          onChange={(e) => setForm((f) => ({ ...f, uso: e.target.value }))}
-        >
-          <option value="">— Sin comparación objetivo —</option>
-          {Object.entries(USOS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs text-gray-600">
-          Si selecciona un uso, el RT60 se comparará con el valor óptimo según normativa.
-        </p>
-      </div>
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">3 · Materiales</h3>
+          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-500"><span>{hasFullCatalog ? "Catálogo completo de la licencia" : "Catálogo FREE anónimo"}</span>{materialsError && <button type="button" className="font-semibold text-teal-700" onClick={() => setRetryCatalog((value) => value + 1)}>Reintentar catálogo</button>}</div>
+          {materialsError && <Alert variant="warning" className="mt-2 text-xs" role="status">{materialsError}</Alert>}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Input id="mat-filter" type="search" placeholder="Filtrar materiales…" value={filter} onChange={(event) => setFilter(event.target.value)} className="text-xs" />
+            <Select id="mat-categoria" aria-label="Filtrar materiales por categoría" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)} className="text-xs"><option value="">Todas las categorías</option>{Object.keys(categories).map((category) => <option key={category}>{category}</option>)}</Select>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            {SURFACES.map((surface, index) => {
+              const slug = surface.toLowerCase().replace(/[\s.]+/g, "-");
+              return <div key={surface} className="rounded-lg border bg-surface-muted p-2.5">
+                <label htmlFor={`mat-${slug}`} className="mb-1 block text-xs font-semibold">{surface}</label>
+                <Select id={`mat-${slug}`} value={form.materials[index]} onChange={(event) => updateMaterial(index, event.target.value)} className="min-h-9 text-xs">
+                  {materialsLoading && !materials.length ? <option>Cargando...</option> : Object.entries(grouped).map(([category, items]) => <optgroup key={category} label={category}>{items.map((material) => <option key={material.nombre} value={material.nombre}>{material.nombre}{material.iso_class && material.iso_class !== "No clasificado" ? ` [${material.iso_class}]` : ""}</option>)}</optgroup>)}
+                </Select>
+                <button type="button" className="mt-1.5 text-xs font-semibold text-teal-700 dark:text-teal-400" onClick={() => setShowAlpha((current) => ({ ...current, [index]: !current[index] }))}>{showAlpha[index] ? "Ocultar α" : "α personalizado"}</button>
+                {showAlpha[index] && <div className="mt-2 grid grid-cols-3 gap-1">{BANDS.map((band) => <Field key={band} htmlFor={`alpha-${slug}-${band}`} label={`${band} Hz`}><Input id={`alpha-${slug}-${band}`} type="number" step="0.01" min="0" max="1" placeholder="α" className="min-h-8 px-2 text-xs" value={form.alphas[`sup_${index}`]?.[band] ?? ""} onChange={(event) => setForm((current) => ({ ...current, alphas: { ...current.alphas, [`sup_${index}`]: { ...current.alphas[`sup_${index}`], [band]: event.target.value } } }))} /></Field>)}</div>}
+              </div>;
+            })}
+          </div>
+        </section>
 
-      <button
-        type="submit"
-        disabled={loading || materialsLoading}
-        className="w-full rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.01] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {loading ? "Calculando..." : "Calcular"}
-      </button>
+        <Field htmlFor="sala-uso" label="4 · Uso de la sala" hint="Añade un objetivo normativo al diagnóstico de RT60.">
+          <Select id="sala-uso" aria-label="Uso de la sala" value={form.uso} onChange={(event) => setForm((current) => ({ ...current, uso: event.target.value }))}><option value="">Sin comparación objetivo</option>{Object.entries(USES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
+        </Field>
+      </>}
+      <Button type="submit" className="w-full" disabled={materialsLoading}>Calcular</Button>
     </form>
   );
 }

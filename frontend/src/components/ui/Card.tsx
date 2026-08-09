@@ -1,3 +1,5 @@
+import { cn } from "@/lib/cn";
+
 export function Card({
   children,
   className = "",
@@ -5,7 +7,7 @@ export function Card({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 ${className}`}
+      className={cn("rounded-[var(--radius-card)] border bg-surface p-4 shadow-[var(--shadow-panel)] sm:p-5", className)}
       {...props}
     >
       {children}
@@ -15,7 +17,7 @@ export function Card({
 
 export function CardTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <h2 className={`mb-4 border-b border-gray-100 pb-2 text-lg font-semibold text-gray-800 ${className}`}>
+    <h2 className={cn("mb-4 border-b pb-3 text-base font-semibold tracking-tight text-foreground", className)}>
       {children}
     </h2>
   );

@@ -18,15 +18,15 @@ export async function gotoResults(page: Page, payload: Record<string, unknown>, 
 }
 
 export async function activatePaidLicense(page: Page, key = PAID_KEY, tier: "PAID" | "RESEARCH" = "PAID") {
-  const form = page.locator("#license-key");
-  if (!(await form.count())) return;
-  if (!(await form.first().isVisible().catch(() => false))) return;
-  await form.first().fill(key);
-  await page.getByRole("button", { name: "Activar" }).click();
-  await page
-    .getByRole("region", { name: "Licencia y clave API" })
-    .getByText(tier, { exact: true })
-    .waitFor({ state: "visible" });
+  await page.getByTestId("license-trigger").click();
+  const license = page.getByRole("region", { name: "Licencia y clave API" });
+  const form = license.locator("#license-key");
+  if (await form.isVisible().catch(() => false)) {
+    await form.fill(key);
+    await license.getByRole("button", { name: "Activar" }).click();
+    await license.getByText(tier, { exact: true }).waitFor({ state: "visible" });
+  }
+  await page.keyboard.press("Escape");
 }
 
 export async function fillRoom(page: Page, dims: { largo?: string; ancho?: string; alto?: string }) {
@@ -36,5 +36,5 @@ export async function fillRoom(page: Page, dims: { largo?: string; ancho?: strin
 }
 
 export async function openTab(page: Page, label: string) {
-  await page.getByRole("tab", { name: new RegExp(`^${label}(\\s|$)`) }).first().click();
+  await page.getByRole("tab", { name: new RegExp(`^${label}`) }).first().click();
 }

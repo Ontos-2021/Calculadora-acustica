@@ -1,6 +1,6 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
+import { EChart } from "./EChart";
 
 export function BonelloChart({
   bandas,
@@ -50,22 +50,20 @@ export function BonelloChart({
         type: "bar",
         data: counts,
         itemStyle: {
-          color: "#4a90d9",
+          color: "#0f766e",
           borderRadius: [2, 2, 0, 0],
         },
         emphasis: {
-          itemStyle: { color: "#2563eb" },
+          itemStyle: { color: "#14b8a6" },
         },
       },
     ],
   };
 
   return (
-    <ReactECharts
+    <EChart
       option={option}
-      style={{ height: 380 }}
-      notMerge
-      lazyUpdate
+      className="h-[clamp(20rem,55vw,24rem)]"
     />
   );
 }

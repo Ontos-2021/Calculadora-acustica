@@ -8,7 +8,8 @@ test.describe("Accesibilidad y respuesta móvil", () => {
     for (const width of [320, 375, 768]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
-      await expect(page.locator("#dim-largo")).toBeVisible();
+      await page.getByRole("button", { name: "Configurar sala" }).click();
+      await expect(page.locator("#dim-largo:visible")).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
     }
@@ -20,10 +21,11 @@ test.describe("Accesibilidad y respuesta móvil", () => {
 
   test("tabs implementan semántica y navegación por flechas", async ({ page }) => {
     await gotoResults(page, SALA_BASE);
-    const analysis = page.getByRole("tab", { name: /^Análisis/ });
-    await analysis.focus();
-    await analysis.press("ArrowRight");
-    await expect(page.getByRole("tab", { name: "Presión" })).toHaveAttribute("aria-selected", "true");
+    const summary = page.getByRole("tab", { name: "Resumen" });
+    await summary.focus();
+    await summary.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: /^Modos/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("heading", { name: /Modos de resonancia/i })).toBeVisible();
     await expect(page.getByRole("tabpanel")).toBeVisible();
   });
 

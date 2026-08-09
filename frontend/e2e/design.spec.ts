@@ -6,7 +6,7 @@ test.describe("Diseño y tratamiento PAID", () => {
   test.beforeEach(async ({ page }) => {
     await gotoResults(page, SALA_CON_USO);
     await activatePaidLicense(page);
-    await openTab(page, "Diseño");
+    await openTab(page, "Tratamiento");
   });
 
   test("verifica un tratamiento contra la sala actual", async ({ page }) => {
@@ -19,7 +19,7 @@ test.describe("Diseño y tratamiento PAID", () => {
   });
 
   test("calcula absorbente poroso y expone límites de validez", async ({ page }) => {
-    await page.getByRole("tab", { name: "Absorbentes" }).click();
+    await expect(page.getByRole("tab", { name: "Poroso" })).toHaveAttribute("aria-selected", "true");
     await page.locator("#abs-poroso-espesor").fill("0.1");
     await page.locator("#abs-poroso-flow").fill("8000");
     await page.getByRole("button", { name: "Predecir α(f)" }).click();
@@ -30,7 +30,7 @@ test.describe("Diseño y tratamiento PAID", () => {
   });
 
   test("genera QRD con diagnóstico de manufacturabilidad", async ({ page }) => {
-    await page.getByRole("tab", { name: "Difusores" }).click();
+    await expect(page.getByRole("tab", { name: "QRD (1D)" })).toHaveAttribute("aria-selected", "true");
     await page.locator("#dif-qrd-freq").fill("800");
     await page.locator("#dif-qrd-n").fill("13");
     await page.getByRole("button", { name: "Calcular difusor" }).click();

@@ -11,7 +11,8 @@ test.describe("Flujo de cálculo anónimo", () => {
     await page.getByRole("button", { name: "Calcular" }).click();
     await expect(page).toHaveURL(/\/results\?data=/);
     await expect(page.getByText("RT60 Promedio")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("engine-source")).toContainText("acoustic_core del servidor");
+    await expect(page.getByTestId("engine-source")).toContainText("Verificado por servidor", { timeout: 20_000 });
+    await page.getByText("Supuestos, incertidumbre y procedencia").click();
     await expect(page.getByText("24.0 °C · 60 % HR")).toBeVisible();
     const value = parseFloat(await page.getByText("RT60 Promedio").locator("..").locator("p").nth(1).textContent() || "0");
     expect(value).toBeGreaterThan(0);
@@ -32,10 +33,11 @@ test.describe("Flujo de cálculo anónimo", () => {
 
   test("integra velocidad del sonido, campo difuso y Bolt", async ({ page }) => {
     await gotoResults(page, SALA_BASE);
-    await expect(page.getByText("Velocidad del sonido")).toBeVisible();
-    await expect(page.getByText("Campo difuso modal")).toBeVisible();
+    await page.getByText("Supuestos, incertidumbre y procedencia").click();
+    await expect(page.getByText("Velocidad", { exact: true })).toBeVisible();
+    await expect(page.getByText("Campo difuso", { exact: true })).toBeVisible();
     await expect(page.getByText("Área de Bolt")).toBeVisible();
-    const speed = await page.getByText("Velocidad del sonido").locator("..").locator("dd").textContent();
+    const speed = await page.getByText("Velocidad", { exact: true }).locator("..").locator("dd").textContent();
     expect(Number(speed?.split(" ")[0])).toBeGreaterThan(330);
   });
 });

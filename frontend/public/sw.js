@@ -1,4 +1,4 @@
-const VERSION = "acoustic-pwa-v5";
+const VERSION = "acoustic-pwa-v6";
 const CACHE_PREFIX = "acoustic-pwa-";
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;

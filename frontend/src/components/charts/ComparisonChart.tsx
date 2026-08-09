@@ -1,7 +1,7 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import type { RT60Bandas, ObjetivoInfo } from "@/lib/types";
+import { EChart } from "./EChart";
 
 const BANDAS = ["125", "250", "500", "1000", "2000", "4000"];
 
@@ -50,8 +50,8 @@ export function ComparisonChart({
           value: v,
           itemStyle: {
             color: objetivos[i] > 0 && Math.abs(v - objetivos[i]) > 0.2
-              ? "#e74c3c"
-              : "#3498db",
+              ? "#e11d48"
+              : "#0f766e",
           },
         })),
       },
@@ -61,7 +61,7 @@ export function ComparisonChart({
         type: "bar",
         data: objetivos,
         itemStyle: {
-          color: "#95a5a6",
+          color: "#a1a1aa",
           opacity: 0.6,
         },
       },
@@ -69,11 +69,9 @@ export function ComparisonChart({
   };
 
   return (
-    <ReactECharts
+    <EChart
       option={option}
-      style={{ height: 380 }}
-      notMerge
-      lazyUpdate
+      className="h-[clamp(20rem,55vw,24rem)]"
     />
   );
 }
