@@ -4,6 +4,13 @@ Todos los cambios relevantes de este proyecto se documentan aquí. El formato
 sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto
 usa versionado semántico para las entregas públicas.
 
+## [Unreleased]
+
+### Añadido
+
+- Contrato versionado del subsistema de almacenamiento privado, incluyendo
+  ownership, cuota por licencia, ciclo de vida, API e integraciones previstas.
+
 ## [2.0.0] - 2026-08-09
 
 ### Añadido
