@@ -7,7 +7,7 @@ from api.rate_limit import RateLimitResult, endpoint_cost, get_rate_limiter
 class UnlimitedTestRateLimiter:
     def check(self, _identity, tier, endpoint, **_kwargs) -> RateLimitResult:
         del _identity
-        cost = endpoint_cost(endpoint)
+        cost = endpoint_cost(endpoint, _kwargs.get("method"))
         return RateLimitResult(
             allowed=True,
             tier=getattr(tier, "value", tier) or "ANONYMOUS",
@@ -22,12 +22,15 @@ class UnlimitedTestRateLimiter:
             daily_reset_after=0,
         )
 
-    def check_principal(self, principal, endpoint, *, client_ip=None) -> RateLimitResult:
+    def check_principal(
+        self, principal, endpoint, *, client_ip=None, method=None
+    ) -> RateLimitResult:
         del client_ip
         return self.check(
             "e2e",
             principal.tier if principal else None,
             endpoint,
+            method=method,
         )
 
 

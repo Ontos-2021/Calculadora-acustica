@@ -11,6 +11,7 @@ import type {
   StoredAsset,
   StoredAssetList,
   StorageUsage,
+  MultipartUpload,
 } from "./types";
 
 type ErrorKind = "network" | "unauthorized" | "forbidden" | "rate_limited" | "validation" | "http";
@@ -193,6 +194,45 @@ export function uploadStoredObject(
     const form = new FormData();
     form.append("file", file);
     request.send(form);
+  });
+}
+
+async function sha256Hex(file: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function uploadLargeStoredObject(
+  file: File,
+  apiKey: string,
+  onProgress: (percent: number) => void,
+): Promise<StoredAsset> {
+  const reservation = await apiRequest<MultipartUpload>("objects/uploads", {
+    apiKey,
+    body: {
+      filename: file.name,
+      content_type: file.type || "application/octet-stream",
+      category: file.type === "audio/wav" ? "wav" : "upload",
+      size_bytes: file.size,
+      sha256: await sha256Hex(file),
+    },
+  });
+  const parts: Array<{ part_number: number; etag: string }> = [];
+  for (let index = 0; index < reservation.upload_urls.length; index += 1) {
+    const start = index * reservation.part_size_bytes;
+    const response = await fetch(reservation.upload_urls[index], {
+      method: "PUT",
+      body: file.slice(start, Math.min(file.size, start + reservation.part_size_bytes)),
+    });
+    if (!response.ok) throw new ApiError(response.status, "Falló una parte del upload multipart.");
+    const etag = response.headers.get("ETag");
+    if (!etag) throw new ApiError(0, "S3 no expuso el header ETag; revisa CORS del bucket.");
+    parts.push({ part_number: index + 1, etag });
+    onProgress(Math.round((index + 1) / reservation.upload_urls.length * 100));
+  }
+  return apiRequest<StoredAsset>(`objects/uploads/${reservation.asset_id}/complete`, {
+    apiKey,
+    body: { parts },
   });
 }
 

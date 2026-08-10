@@ -16,6 +16,10 @@ Los usuarios anónimos no pueden almacenar objetos. La primera versión admite
 objetos de hasta 16 MiB; los uploads multipart permiten superar ese límite en la
 fase de escalado.
 
+Los uploads S3 grandes reservan cuota antes de emitir URLs firmadas, usan partes
+de 8 MiB (máximo 1000), expiran en una hora y solo pasan a `READY` cuando el
+tamaño confirmado coincide con la reserva.
+
 ## Invariantes
 
 - Los objetos son privados e inmutables.

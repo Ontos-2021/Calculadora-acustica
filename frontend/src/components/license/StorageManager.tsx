@@ -10,6 +10,7 @@ import {
   fetchStorageUsage,
   fetchStoredObjects,
   uploadStoredObject,
+  uploadLargeStoredObject,
 } from "@/lib/api";
 import type { StoredAsset, StorageUsage } from "@/lib/types";
 
@@ -50,7 +51,11 @@ export function StorageManager() {
     setBusy(true);
     setProgress(0);
     try {
-      await uploadStoredObject(file, apiKey, setProgress);
+      if (file.size > 16 * 1024 * 1024) {
+        await uploadLargeStoredObject(file, apiKey, setProgress);
+      } else {
+        await uploadStoredObject(file, apiKey, setProgress);
+      }
       await refresh();
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "No se pudo subir el archivo.");

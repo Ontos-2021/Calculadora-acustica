@@ -14,6 +14,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    connection = op.get_bind()
+    columns = {column["name"] for column in sa.inspect(connection).get_columns("stored_assets")}
+    if "job_id" in columns:
+        return
     with op.batch_alter_table("stored_assets") as batch:
         batch.add_column(sa.Column("job_id", sa.Uuid(), nullable=True))
         batch.create_foreign_key(
@@ -23,6 +27,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    connection = op.get_bind()
+    columns = {column["name"] for column in sa.inspect(connection).get_columns("stored_assets")}
+    if "job_id" not in columns:
+        return
     with op.batch_alter_table("stored_assets") as batch:
         batch.drop_index("ix_stored_assets_job_id")
         batch.drop_constraint("fk_stored_assets_job_id", type_="foreignkey")

@@ -6,7 +6,7 @@
 - `api/` - FastAPI backend
 - `worker/` - Redis job worker
 - `frontend/` - Next.js 16 App Router
-- `tests/` - pytest (500 tests)
+- `tests/` - pytest (526 tests)
 
 ## Commands
 - `python3 -m pytest tests/ -q` - Run backend tests

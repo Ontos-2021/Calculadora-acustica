@@ -326,6 +326,8 @@ def reconcile_assets(
                     repaired += 1
                     continue
                 storage.delete(asset.storage_key)
+            elif asset.multipart_upload_id:
+                storage.abort_multipart(asset.storage_key, asset.multipart_upload_id)
             asset.status = AssetStatus.FAILED
             asset.deleted_at = utc_now()
             failed += 1
@@ -361,3 +363,86 @@ def storage_metrics(session: Session) -> dict[str, object]:
         by_category[category]["objects"] += int(count)
         by_category[category]["bytes"] += int(size)
     return {"by_status": by_status, "by_category": by_category}
+
+
+def reserve_multipart_asset(
+    session: Session,
+    storage: StorageBackend,
+    principal: AuthenticatedPrincipal,
+    *,
+    filename: str,
+    content_type: str | None,
+    size_bytes: int,
+    sha256: str,
+    category: str,
+    part_size_bytes: int = 8 * 1024 * 1024,
+    expires_in: int = 3600,
+) -> tuple[StoredAsset, int, list[str]]:
+    session.scalar(
+        select(License).where(License.id == principal.license_id).with_for_update()
+    )
+    usage = storage_usage(session, principal)
+    if size_bytes > usage.remaining_bytes:
+        raise StorageQuotaExceeded("storage quota exceeded for multipart upload")
+    part_count = max(1, (size_bytes + part_size_bytes - 1) // part_size_bytes)
+    if part_count > 1000:
+        raise ValueError("multipart upload exceeds 1000 parts")
+    asset_id = uuid.uuid4()
+    asset = StoredAsset(
+        id=asset_id,
+        user_id=principal.user_id,
+        license_id=principal.license_id,
+        storage_key=f"users/{principal.user_id}/{asset_id}",
+        filename=sanitize_filename(filename),
+        content_type=normalize_content_type(content_type),
+        category=category,
+        size_bytes=size_bytes,
+        sha256=sha256.lower(),
+        status=AssetStatus.PENDING,
+    )
+    session.add(asset)
+    session.flush()
+    try:
+        upload_id, urls = storage.initiate_multipart(
+            asset.storage_key,
+            content_type=asset.content_type,
+            part_count=part_count,
+            expires_in=expires_in,
+        )
+        asset.multipart_upload_id = upload_id
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    return asset, part_size_bytes, urls
+
+
+def complete_multipart_asset(
+    session: Session,
+    storage: StorageBackend,
+    principal: AuthenticatedPrincipal,
+    asset_id: uuid.UUID,
+    parts: list[dict[str, object]],
+) -> StoredAsset:
+    asset = session.scalar(
+        select(StoredAsset).where(
+            StoredAsset.id == asset_id,
+            StoredAsset.user_id == principal.user_id,
+            StoredAsset.status == AssetStatus.PENDING,
+        ).with_for_update()
+    )
+    if asset is None or not asset.multipart_upload_id:
+        raise StoredAssetNotFound(str(asset_id))
+    storage.complete_multipart(asset.storage_key, asset.multipart_upload_id, parts)
+    actual_size = storage.object_size(asset.storage_key)
+    if actual_size != asset.size_bytes:
+        storage.delete(asset.storage_key)
+        asset.status = AssetStatus.FAILED
+        asset.deleted_at = utc_now()
+        session.commit()
+        raise AssetIntegrityError("multipart object size does not match reservation")
+    asset.status = AssetStatus.READY
+    asset.multipart_upload_id = None
+    _audit(session, principal, "storage.multipart_complete", asset)
+    session.commit()
+    return asset

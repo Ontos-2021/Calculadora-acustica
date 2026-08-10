@@ -30,6 +30,16 @@ usa versionado semántico para las entregas públicas.
   listado, descarga y borrado accesible desde el diálogo de licencia.
 - Métricas operativas, reconciliación automática en worker, CLI de mantenimiento
   y guía de operación S3.
+- Reserva de cuota y uploads multipart S3 presignados con confirmación de tamaño,
+  partes de 8 MiB y expiración de una hora.
+
+### Validación
+
+- `python3 -m pytest tests/ -q`: 526 pruebas aprobadas.
+- `npm run build`: Next.js export estático y TypeScript aprobados.
+- `npm run test:e2e`: 47 pruebas Playwright aprobadas.
+- Imagen API construida y migraciones verificadas hasta
+  `0004_multipart_uploads (head)`.
 
 ## [2.0.0] - 2026-08-09
 

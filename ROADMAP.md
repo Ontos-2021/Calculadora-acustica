@@ -17,12 +17,12 @@ La especificación histórica se conserva debajo. Esta tabla es el estado autori
 | Fase 6: numérico | Completada | Paquete server-only `acoustic_numerics/` con NumPy/SciPy: impedancia, FEM 2D, SAH-BVH y modelo híbrido |
 | Freemium y API pública | Completada | FREE anónimo, PAID/RESEARCH por API key, entitlements, cuotas, rate limiting y jobs |
 | Jobs asíncronos | Completada | POST /jobs con validación de payload, coste por kind e idempotencia; worker con handlers registrados para FEM 2D, ray-tracing e híbrido; límite `max_concurrent_jobs` activo |
-| Almacenamiento por licencia | En curso | Contrato en `docs/STORAGE.md`; implementación por fases de objetos, artefactos, frontend, operación y multipart |
+| Almacenamiento por licencia | Completada | Objetos privados, cuota transaccional, artefactos de jobs, proyectos, frontend, reconciliación y multipart S3 presignado |
 | Frontend profesional | Completada | Feature gates, exportación PDF/CSV/JSON/LaTeX/Typst, accesibilidad móvil y fallback offline FREE |
 
 Validación automatizada actual:
 
-- Backend: 500 pruebas pytest.
+- Backend: 526 pruebas pytest.
 - Navegador: 47 pruebas Playwright contra el export estático de producción.
 - Frontend: build Next.js y TypeScript correcto.
 - Infraestructura: `docker compose config --quiet` correcto.

@@ -197,7 +197,7 @@ def test_license_status_and_authentication_semantics(client, free_headers):
     data = response.json()
     assert data["tier"] == "FREE"
     assert data["authenticated"] is True
-    assert set(data["entitlements"]) == {"basic", "pressure_map"}
+    assert set(data["entitlements"]) == {"basic", "pressure_map", "storage"}
     assert data["quotas"]["requests_per_minute"] == 30
 
 

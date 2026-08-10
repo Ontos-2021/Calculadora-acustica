@@ -35,6 +35,13 @@ export interface StorageUsage {
   usage_percent: number;
 }
 
+export interface MultipartUpload {
+  asset_id: string;
+  part_size_bytes: number;
+  upload_urls: string[];
+  expires_in_seconds: number;
+}
+
 export interface EnvironmentResult extends EnvironmentInput {
   sound_speed_m_s: number;
 }

@@ -34,6 +34,14 @@ class StorageBackend(Protocol):
 
     def url(self, key: str, *, expires_in: int = 3600) -> str: ...
     def list_keys(self, prefix: str = "") -> list[str]: ...
+    def initiate_multipart(
+        self, key: str, *, content_type: str, part_count: int, expires_in: int
+    ) -> tuple[str, list[str]]: ...
+    def complete_multipart(
+        self, key: str, upload_id: str, parts: list[dict[str, object]]
+    ) -> None: ...
+    def abort_multipart(self, key: str, upload_id: str) -> None: ...
+    def object_size(self, key: str) -> int: ...
 
 
 def normalize_storage_key(key: str) -> str:
@@ -105,6 +113,20 @@ class LocalStorage:
             for path in base.rglob("*")
             if path.is_file()
         )
+
+    def initiate_multipart(self, key: str, *, content_type: str, part_count: int, expires_in: int):
+        del key, content_type, part_count, expires_in
+        raise NotImplementedError("multipart uploads require S3 storage")
+
+    def complete_multipart(self, key: str, upload_id: str, parts: list[dict[str, object]]) -> None:
+        del key, upload_id, parts
+        raise NotImplementedError("multipart uploads require S3 storage")
+
+    def abort_multipart(self, key: str, upload_id: str) -> None:
+        del key, upload_id
+
+    def object_size(self, key: str) -> int:
+        return self._path(key).stat().st_size
 
 
 class S3Storage:
@@ -191,6 +213,47 @@ class S3Storage:
                 raw = raw[len(self.prefix) + 1 :]
             keys.append(raw)
         return sorted(keys)
+
+    def initiate_multipart(
+        self, key: str, *, content_type: str, part_count: int, expires_in: int
+    ) -> tuple[str, list[str]]:
+        response = self.client.create_multipart_upload(
+            Bucket=self.bucket, Key=self._key(key), ContentType=content_type
+        )
+        upload_id = response["UploadId"]
+        urls = [
+            self.client.generate_presigned_url(
+                "upload_part",
+                Params={
+                    "Bucket": self.bucket,
+                    "Key": self._key(key),
+                    "UploadId": upload_id,
+                    "PartNumber": part_number,
+                },
+                ExpiresIn=expires_in,
+            )
+            for part_number in range(1, part_count + 1)
+        ]
+        return upload_id, urls
+
+    def complete_multipart(
+        self, key: str, upload_id: str, parts: list[dict[str, object]]
+    ) -> None:
+        self.client.complete_multipart_upload(
+            Bucket=self.bucket,
+            Key=self._key(key),
+            UploadId=upload_id,
+            MultipartUpload={"Parts": parts},
+        )
+
+    def abort_multipart(self, key: str, upload_id: str) -> None:
+        self.client.abort_multipart_upload(
+            Bucket=self.bucket, Key=self._key(key), UploadId=upload_id
+        )
+
+    def object_size(self, key: str) -> int:
+        response = self.client.head_object(Bucket=self.bucket, Key=self._key(key))
+        return int(response["ContentLength"])
 
 
 def create_storage(settings: Settings | None = None) -> StorageBackend:

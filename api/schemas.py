@@ -1840,6 +1840,30 @@ class StorageMetricsResponse(APIResponseModel):
     backend_available: bool
 
 
+class MultipartUploadRequest(APIModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(default="application/octet-stream", max_length=200)
+    category: Literal["upload", "wav", "export"] = "upload"
+    size_bytes: int = Field(gt=0, le=50 * 1024 * 1024 * 1024)
+    sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+
+
+class MultipartUploadResponse(APIResponseModel):
+    asset_id: UUID
+    part_size_bytes: int
+    upload_urls: list[str]
+    expires_in_seconds: int
+
+
+class MultipartPart(APIModel):
+    part_number: int = Field(ge=1, le=1000)
+    etag: str = Field(min_length=1, max_length=500)
+
+
+class MultipartCompleteRequest(APIModel):
+    parts: list[MultipartPart] = Field(min_length=1, max_length=1000)
+
+
 class ProjectCreateRequest(APIModel):
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)

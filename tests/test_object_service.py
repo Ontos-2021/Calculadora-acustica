@@ -15,6 +15,8 @@ from api.object_service import (
     list_assets,
     read_asset,
     reconcile_assets,
+    reserve_multipart_asset,
+    complete_multipart_asset,
     sanitize_filename,
     storage_usage,
     storage_metrics,
@@ -139,3 +141,39 @@ def test_storage_metrics_aggregate_status_and_category(
         metrics = storage_metrics(database)
     assert metrics["by_status"]["READY"]["objects"] == 1
     assert metrics["by_category"]["export"]["bytes"] == 3
+
+
+def test_multipart_reserves_and_confirms_quota(
+    api_session_factory, api_keys, tmp_path
+):
+    class MultipartStorage(LocalStorage):
+        def initiate_multipart(self, key, *, content_type, part_count, expires_in):
+            return "upload-1", [f"https://upload/{part}" for part in range(part_count)]
+
+        def complete_multipart(self, key, upload_id, parts):
+            self.put(key, b"0123456789")
+
+    storage = MultipartStorage(tmp_path / "objects")
+    with api_session_factory() as database:
+        principal = _principal(database, api_keys)
+        asset, part_size, urls = reserve_multipart_asset(
+            database,
+            storage,
+            principal,
+            filename="large.bin",
+            content_type="application/octet-stream",
+            size_bytes=10,
+            sha256="a" * 64,
+            category="upload",
+        )
+        assert part_size == 8 * 1024 * 1024
+        assert len(urls) == 1
+        completed = complete_multipart_asset(
+            database,
+            storage,
+            principal,
+            asset.id,
+            [{"PartNumber": 1, "ETag": "etag"}],
+        )
+        assert completed.status.value == "READY"
+        assert storage_usage(database, principal).used_bytes == 10

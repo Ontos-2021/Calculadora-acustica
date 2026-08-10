@@ -365,6 +365,18 @@ def test_s3_storage_uses_compatible_object_api_without_network_access():
         def generate_presigned_url(self, operation, Params, ExpiresIn):
             return f"https://objects.test/{Params['Bucket']}/{Params['Key']}?ttl={ExpiresIn}"
 
+        def create_multipart_upload(self, **_kwargs):
+            return {"UploadId": "upload-1"}
+
+        def complete_multipart_upload(self, **_kwargs):
+            return None
+
+        def abort_multipart_upload(self, **_kwargs):
+            return None
+
+        def list_objects_v2(self, **_kwargs):
+            return {"Contents": []}
+
     client = FakeS3()
     storage = S3Storage("exports", prefix="tenant", client=client)
     storage.put("reports/one.pdf", b"pdf")

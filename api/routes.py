@@ -143,6 +143,8 @@ from .object_service import (
     get_asset,
     list_assets,
     read_asset,
+    reserve_multipart_asset,
+    complete_multipart_asset,
     storage_metrics,
     storage_usage,
 )
@@ -225,6 +227,9 @@ from .schemas import (
     MethodWarningSchema,
     ModalQRequest,
     ModalQResponse,
+    MultipartCompleteRequest,
+    MultipartUploadRequest,
+    MultipartUploadResponse,
     NCEvaluationRequest,
     NREvaluationRequest,
     NoiseRatingResponse,
@@ -2233,6 +2238,67 @@ async def object_storage_usage(
         object_count=usage.object_count,
         usage_percent=usage.usage_percent,
     )
+
+
+@router.post(
+    "/objects/uploads",
+    response_model=MultipartUploadResponse,
+    status_code=201,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def initiate_multipart_upload(
+    data: MultipartUploadRequest,
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
+    database: Session = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage),
+) -> MultipartUploadResponse:
+    try:
+        asset, part_size, urls = reserve_multipart_asset(
+            database,
+            storage,
+            principal,
+            filename=data.filename,
+            content_type=data.content_type,
+            size_bytes=data.size_bytes,
+            sha256=data.sha256,
+            category=data.category,
+        )
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=409, detail="Multipart uploads require S3") from exc
+    except StorageQuotaExceeded as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    return MultipartUploadResponse(
+        asset_id=asset.id,
+        part_size_bytes=part_size,
+        upload_urls=urls,
+        expires_in_seconds=3600,
+    )
+
+
+@router.post(
+    "/objects/uploads/{asset_id}/complete",
+    response_model=StoredAssetResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def complete_multipart_upload(
+    asset_id: UUID,
+    data: MultipartCompleteRequest,
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
+    database: Session = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage),
+) -> StoredAssetResponse:
+    parts = [
+        {"PartNumber": part.part_number, "ETag": part.etag}
+        for part in data.parts
+    ]
+    try:
+        return _asset_response(
+            complete_multipart_asset(database, storage, principal, asset_id, parts)
+        )
+    except StoredAssetNotFound as exc:
+        raise HTTPException(status_code=404, detail="Multipart upload not found") from exc
+    except AssetIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get(

@@ -278,6 +278,7 @@ class StoredAsset(Base):
     category: Mapped[str] = mapped_column(String(32), default="upload", index=True)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
+    multipart_upload_id: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[AssetStatus] = mapped_column(
         Enum(AssetStatus, native_enum=False, length=16),
         default=AssetStatus.PENDING,

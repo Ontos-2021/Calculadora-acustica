@@ -47,7 +47,7 @@ Abrir http://localhost (frontend) o http://localhost:8000/docs (API).
 ## Tests
 
 ```bash
-python3 -m pytest tests/ -q   # 500 tests
+python3 -m pytest tests/ -q   # 526 tests
 
 cd frontend
 npm run build                 # build estático + TypeScript
@@ -72,7 +72,7 @@ frontend/          Next.js 16 (static export)
   src/lib/         API client + motor FREE offline
   e2e/             Playwright + servidores aislados de producción
 
-api/               FastAPI
+api/               FastAPI + objetos privados y jobs
   routes.py        Endpoints REST
   schemas.py       Modelos Pydantic
   dependencies.py  Feature gates
@@ -106,5 +106,5 @@ acoustic_core/     Biblioteca acústica (pure Python)
 
 acoustic_numerics/ NumPy/SciPy: impedancia, FEM, SAH-BVH e híbrido
 
-tests/             500 tests pytest
+tests/             526 tests pytest
 ```

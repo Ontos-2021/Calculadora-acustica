@@ -70,3 +70,18 @@ def test_storage_metrics_require_research(client, paid_headers, research_headers
     )
     assert response.status_code == 200
     assert response.json()["backend_available"] is True
+
+
+def test_multipart_requires_s3_backend(client, free_headers):
+    response = client.post(
+        "/api/v1/objects/uploads",
+        json={
+            "filename": "large.wav",
+            "content_type": "audio/wav",
+            "category": "wav",
+            "size_bytes": 20_000_000,
+            "sha256": "a" * 64,
+        },
+        headers=free_headers,
+    )
+    assert response.status_code == 409
