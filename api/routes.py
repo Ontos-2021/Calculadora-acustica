@@ -2149,7 +2149,7 @@ def _asset_response(asset: object) -> StoredAssetResponse:
 )
 async def upload_object(
     file: UploadFile = File(...),
-    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
     storage: StorageBackend = Depends(get_storage),
 ) -> StoredAssetResponse:
@@ -2182,7 +2182,7 @@ async def upload_object(
 async def stored_objects(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
-    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
 ) -> StoredAssetListResponse:
     items, total = list_assets(database, principal, offset=offset, limit=limit)
@@ -2200,7 +2200,7 @@ async def stored_objects(
     dependencies=[Depends(enforce_rate_limit)],
 )
 async def object_storage_usage(
-    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
 ) -> StorageUsageResponse:
     usage = storage_usage(database, principal)
@@ -2220,7 +2220,7 @@ async def object_storage_usage(
 )
 async def stored_object_metadata(
     asset_id: UUID,
-    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
 ) -> StoredAssetResponse:
     try:
@@ -2236,7 +2236,7 @@ async def stored_object_metadata(
 )
 async def download_stored_object(
     asset_id: UUID,
-    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
     storage: StorageBackend = Depends(get_storage),
 ) -> Response:
@@ -2261,7 +2261,7 @@ async def download_stored_object(
 )
 async def delete_stored_object(
     asset_id: UUID,
-    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
     storage: StorageBackend = Depends(get_storage),
 ) -> Response:

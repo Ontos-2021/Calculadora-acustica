@@ -198,10 +198,11 @@ def test_tier_entitlements_and_quota_overrides_are_effective(session):
 
     principal = authenticate_api_key(session, issued.plaintext, pepper=PEPPER, now=NOW)
     assert principal is not None
-    assert principal.entitlements == frozenset({"pressure_map", "ism"})
+    assert principal.entitlements == frozenset({"pressure_map", "storage", "ism"})
     assert principal.quotas["requests_per_minute"] == 7
     assert principal.quotas["daily_request_units"] == 1_000
     assert check_feature(principal, "/api/v1/impulse-response")
+    assert check_feature(principal, "/api/v1/objects")
     assert not check_feature(principal, "/api/v1/calculate")
 
 

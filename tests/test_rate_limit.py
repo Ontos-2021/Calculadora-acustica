@@ -120,6 +120,11 @@ def test_endpoint_costs(path, expected):
     assert endpoint_cost(path) == expected
 
 
+def test_endpoint_cost_can_vary_by_http_method():
+    assert endpoint_cost("/api/v1/objects", "POST") == 2
+    assert endpoint_cost("/api/v1/objects", "GET") == 1
+
+
 class UnavailableRedis:
     def ping(self):
         raise RedisError("offline")

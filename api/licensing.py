@@ -25,7 +25,7 @@ class TierPolicy:
     quotas: Mapping[str, int]
 
 
-_FREE_FEATURES = frozenset({"basic", "pressure_map"})
+_FREE_FEATURES = frozenset({"basic", "pressure_map", "storage"})
 _PAID_FEATURES = _FREE_FEATURES | frozenset(
     {
         "ism",

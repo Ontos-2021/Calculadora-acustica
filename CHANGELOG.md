@@ -18,6 +18,8 @@ usa versionado semántico para las entregas públicas.
   ownership, integridad SHA-256, compensación y ciclo de vida persistente.
 - API autenticada `/objects` para subir, listar, consultar uso, descargar y
   borrar objetos privados.
+- Entitlement `storage` desde FREE y rate limiting sensible al método HTTP para
+  cobrar uploads sin penalizar consultas.
 
 ## [2.0.0] - 2026-08-09
 

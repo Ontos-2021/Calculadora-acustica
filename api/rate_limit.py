@@ -26,6 +26,7 @@ ANONYMOUS_QUOTAS: Mapping[str, int] = {
 }
 
 ENDPOINT_COSTS: Mapping[str, int] = {
+    "POST /api/v1/objects": 2,
     "/api/v1/calculate": 2,
     "/api/v1/pressure-map": 5,
     "/api/v1/impulse-response": 20,
@@ -211,8 +212,12 @@ class RateLimitResult:
             )
 
 
-def endpoint_cost(endpoint: str) -> int:
+def endpoint_cost(endpoint: str, method: str | None = None) -> int:
     normalized = endpoint.split("?", 1)[0].rstrip("/") or "/"
+    if method:
+        method_cost = ENDPOINT_COSTS.get(f"{method.upper()} {normalized}")
+        if method_cost is not None:
+            return method_cost
     exact = ENDPOINT_COSTS.get(normalized)
     if exact is not None:
         return exact
@@ -250,9 +255,10 @@ class FixedWindowRateLimiter:
         endpoint: str,
         *,
         cost: int | None = None,
+        method: str | None = None,
         quota_overrides: Mapping[str, int] | None = None,
     ) -> RateLimitResult:
-        resolved_cost = endpoint_cost(endpoint) if cost is None else cost
+        resolved_cost = endpoint_cost(endpoint, method) if cost is None else cost
         if resolved_cost <= 0:
             raise ValueError("rate limit cost must be positive")
 
@@ -325,11 +331,13 @@ class FixedWindowRateLimiter:
         endpoint: str,
         *,
         client_ip: str | None = None,
+        method: str | None = None,
     ) -> RateLimitResult:
         return self.check(
             rate_limit_identity(principal, client_ip),
             principal.tier if principal else None,
             endpoint,
+            method=method,
             quota_overrides=principal.quotas if principal else None,
         )
 
@@ -370,7 +378,12 @@ def enforce_rate_limit(
     limiter: FixedWindowRateLimiter = Depends(get_rate_limiter),
 ) -> RateLimitResult:
     client_ip = request.client.host if request.client else None
-    result = limiter.check_principal(principal, request.url.path, client_ip=client_ip)
+    result = limiter.check_principal(
+        principal,
+        request.url.path,
+        client_ip=client_ip,
+        method=request.method,
+    )
     result.raise_if_limited()
     response.headers.update(result.headers)
     return result
