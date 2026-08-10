@@ -7,11 +7,14 @@ import pytest
 from api.db_models import LicenseTier
 from api.licensing import authenticate_api_key
 from api.object_service import (
+    AssetIntegrityError,
     StorageQuotaExceeded,
     create_asset,
     delete_asset,
     get_asset,
     list_assets,
+    read_asset,
+    reconcile_assets,
     sanitize_filename,
     storage_usage,
 )
@@ -94,3 +97,24 @@ def test_failed_storage_write_does_not_leave_metadata(
 def test_filename_sanitization():
     assert sanitize_filename("../../folder\\report.pdf") == "report.pdf"
     assert sanitize_filename("\r\n") == "file"
+
+
+def test_read_verifies_integrity(api_session_factory, api_keys, tmp_path):
+    storage = LocalStorage(tmp_path / "objects")
+    with api_session_factory() as database:
+        principal = _principal(database, api_keys)
+        asset = create_asset(
+            database, storage, principal, filename="x", content_type=None, data=b"ok"
+        )
+        storage.put(asset.storage_key, b"tampered")
+        with pytest.raises(AssetIntegrityError):
+            read_asset(database, storage, principal, asset.id)
+
+
+def test_reconcile_removes_orphans(api_session_factory, tmp_path):
+    storage = LocalStorage(tmp_path / "objects")
+    storage.put("users/orphan/blob", b"orphan")
+    with api_session_factory() as database:
+        result = reconcile_assets(database, storage)
+    assert result["orphans_deleted"] == 1
+    assert not storage.exists("users/orphan/blob")

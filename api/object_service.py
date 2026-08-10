@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .db_models import AssetStatus, License, StoredAsset, utc_now
+from .db_models import AssetStatus, AuditEvent, License, StoredAsset, utc_now
 from .licensing import AuthenticatedPrincipal
 from .storage import StorageBackend
 
@@ -17,6 +18,10 @@ class StorageQuotaExceeded(RuntimeError):
 
 
 class StoredAssetNotFound(LookupError):
+    pass
+
+
+class AssetIntegrityError(RuntimeError):
     pass
 
 
@@ -58,6 +63,24 @@ def _usage_query(license_id: uuid.UUID):
     ).where(
         StoredAsset.license_id == license_id,
         StoredAsset.status.in_((AssetStatus.PENDING, AssetStatus.READY)),
+    )
+
+
+def _audit(
+    session: Session,
+    principal: AuthenticatedPrincipal,
+    action: str,
+    asset: StoredAsset,
+) -> None:
+    session.add(
+        AuditEvent(
+            actor_user_id=principal.user_id,
+            actor_api_key_id=principal.api_key_id,
+            action=action,
+            resource_type="stored_asset",
+            resource_id=str(asset.id),
+            details={"filename": asset.filename, "size_bytes": asset.size_bytes},
+        )
     )
 
 
@@ -109,6 +132,7 @@ def create_asset(
         storage.put(storage_key, data, content_type=asset.content_type)
         wrote_object = True
         asset.status = AssetStatus.READY
+        _audit(session, principal, "storage.upload", asset)
         session.commit()
     except Exception:
         session.rollback()
@@ -178,6 +202,7 @@ def delete_asset(
     session.flush()
     try:
         storage.delete(asset.storage_key)
+        _audit(session, principal, "storage.delete", asset)
         session.delete(asset)
         session.commit()
     except Exception:
@@ -189,3 +214,56 @@ def mark_asset_failed(session: Session, asset: StoredAsset) -> None:
     asset.status = AssetStatus.FAILED
     asset.deleted_at = utc_now()
     session.commit()
+
+
+def read_asset(
+    session: Session,
+    storage: StorageBackend,
+    principal: AuthenticatedPrincipal,
+    asset_id: uuid.UUID,
+) -> tuple[StoredAsset, bytes]:
+    asset = get_asset(session, principal, asset_id)
+    if not storage.exists(asset.storage_key):
+        raise StoredAssetNotFound(str(asset_id))
+    data = storage.get(asset.storage_key)
+    if len(data) != asset.size_bytes or hashlib.sha256(data).hexdigest() != asset.sha256:
+        raise AssetIntegrityError(str(asset_id))
+    _audit(session, principal, "storage.download", asset)
+    session.commit()
+    return asset, data
+
+
+def reconcile_assets(
+    session: Session,
+    storage: StorageBackend,
+    *,
+    pending_max_age_seconds: int = 3600,
+) -> dict[str, int]:
+    cutoff = utc_now() - timedelta(seconds=pending_max_age_seconds)
+    records = list(session.scalars(select(StoredAsset)))
+    known_keys = {record.storage_key for record in records}
+    repaired = failed = orphans = 0
+    for asset in records:
+        exists = storage.exists(asset.storage_key)
+        if asset.status == AssetStatus.PENDING and asset.created_at <= cutoff:
+            if exists:
+                data = storage.get(asset.storage_key)
+                valid = len(data) == asset.size_bytes and hashlib.sha256(data).hexdigest() == asset.sha256
+                if valid:
+                    asset.status = AssetStatus.READY
+                    repaired += 1
+                    continue
+                storage.delete(asset.storage_key)
+            asset.status = AssetStatus.FAILED
+            asset.deleted_at = utc_now()
+            failed += 1
+        elif asset.status == AssetStatus.READY and not exists:
+            asset.status = AssetStatus.FAILED
+            asset.deleted_at = utc_now()
+            failed += 1
+    for key in storage.list_keys("users"):
+        if key not in known_keys:
+            storage.delete(key)
+            orphans += 1
+    session.commit()
+    return {"repaired": repaired, "failed": failed, "orphans_deleted": orphans}

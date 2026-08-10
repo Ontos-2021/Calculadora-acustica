@@ -134,12 +134,14 @@ from .jobs import (
 )
 from .licensing import AuthenticatedPrincipal
 from .object_service import (
+    AssetIntegrityError,
     StorageQuotaExceeded,
     StoredAssetNotFound,
     create_asset,
     delete_asset,
     get_asset,
     list_assets,
+    read_asset,
     storage_usage,
 )
 from .rate_limit import enforce_rate_limit, get_rate_limiter, rate_limit_identity
@@ -2241,14 +2243,14 @@ async def download_stored_object(
     storage: StorageBackend = Depends(get_storage),
 ) -> Response:
     try:
-        asset = get_asset(database, principal, asset_id)
+        asset, data = read_asset(database, storage, principal, asset_id)
     except StoredAssetNotFound as exc:
         raise HTTPException(status_code=404, detail="Object not found") from exc
-    if not storage.exists(asset.storage_key):
-        raise HTTPException(status_code=404, detail="Object content not found")
+    except AssetIntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Object integrity check failed") from exc
     filename = quote(asset.filename, safe="")
     return Response(
-        content=storage.get(asset.storage_key),
+        content=data,
         media_type=asset.content_type,
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
     )

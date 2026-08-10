@@ -33,6 +33,7 @@ class StorageBackend(Protocol):
     def exists(self, key: str) -> bool: ...
 
     def url(self, key: str, *, expires_in: int = 3600) -> str: ...
+    def list_keys(self, prefix: str = "") -> list[str]: ...
 
 
 def normalize_storage_key(key: str) -> str:
@@ -93,6 +94,17 @@ class LocalStorage:
     def url(self, key: str, *, expires_in: int = 3600) -> str:
         del expires_in
         return self._path(key).as_uri()
+
+    def list_keys(self, prefix: str = "") -> list[str]:
+        normalized_prefix = normalize_storage_key(prefix) if prefix else ""
+        base = self._path(normalized_prefix) if normalized_prefix else self.root
+        if not base.exists():
+            return []
+        return sorted(
+            path.relative_to(self.root).as_posix()
+            for path in base.rglob("*")
+            if path.is_file()
+        )
 
 
 class S3Storage:
@@ -168,6 +180,17 @@ class S3Storage:
             Params={"Bucket": self.bucket, "Key": self._key(key)},
             ExpiresIn=expires_in,
         )
+
+    def list_keys(self, prefix: str = "") -> list[str]:
+        storage_prefix = self._key(prefix) if prefix else (self.prefix + "/" if self.prefix else "")
+        response = self.client.list_objects_v2(Bucket=self.bucket, Prefix=storage_prefix)
+        keys = []
+        for item in response.get("Contents", []):
+            raw = item["Key"]
+            if self.prefix and raw.startswith(self.prefix + "/"):
+                raw = raw[len(self.prefix) + 1 :]
+            keys.append(raw)
+        return sorted(keys)
 
 
 def create_storage(settings: Settings | None = None) -> StorageBackend:

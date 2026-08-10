@@ -20,6 +20,8 @@ usa versionado semántico para las entregas públicas.
   borrar objetos privados.
 - Entitlement `storage` desde FREE y rate limiting sensible al método HTTP para
   cobrar uploads sin penalizar consultas.
+- Auditoría de objetos, verificación SHA-256 en descarga y reconciliación de
+  registros pendientes, contenido ausente y blobs huérfanos.
 
 ## [2.0.0] - 2026-08-09
 
