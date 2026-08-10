@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import uuid
+import json
 from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -19,6 +20,10 @@ from .database import SessionLocal
 from .db_models import Job, JobStatus, utc_now
 from .licensing import AuthenticatedPrincipal
 from .schemas import FEM2DRequest, HybridRequest, RayTraceRequest
+from .storage import StorageBackend, create_storage
+
+
+JOB_ARTIFACT_THRESHOLD_BYTES = 64 * 1024
 
 
 class JobQueue(Protocol):
@@ -205,6 +210,7 @@ def process_next_job(
     handlers: Mapping[str, JobHandler],
     *,
     timeout: int = 5,
+    storage: StorageBackend | None = None,
 ) -> bool:
     job_id = queue.dequeue(timeout=timeout)
     if job_id is None:
@@ -227,8 +233,30 @@ def process_next_job(
         session.commit()
 
         try:
-            result = handler(dict(job.payload))
-            job.result = dict(result) if result is not None else {}
+            result = dict(handler(dict(job.payload)) or {})
+            encoded = json.dumps(result, separators=(",", ":"), ensure_ascii=False).encode()
+            if storage is not None and len(encoded) >= JOB_ARTIFACT_THRESHOLD_BYTES:
+                from .object_service import create_job_asset
+
+                asset = create_job_asset(
+                    session,
+                    storage,
+                    job,
+                    filename=f"{job.kind.replace('.', '-')}-{job.id}.json",
+                    data=encoded,
+                )
+                job = session.get(Job, job_id)
+                if job is None:
+                    raise RuntimeError("job disappeared after artifact creation")
+                job.result = {
+                    "artifact": {
+                        "asset_id": str(asset.id),
+                        "filename": asset.filename,
+                        "size_bytes": asset.size_bytes,
+                    }
+                }
+            else:
+                job.result = result
             job.error = None
             job.status = JobStatus.SUCCEEDED
             job.finished_at = utc_now()
@@ -279,11 +307,13 @@ def run_worker(
     queue: JobQueue | None = None,
     session_factory: sessionmaker[Session] = SessionLocal,
     handlers: Mapping[str, JobHandler] | None = None,
+    storage: StorageBackend | None = None,
     poll_timeout: int | None = None,
 ) -> None:
     settings = get_settings()
     resolved_queue = queue or get_job_queue()
     resolved_handlers = handlers or {}
+    resolved_storage = storage or create_storage(settings)
     timeout = poll_timeout or settings.worker_poll_timeout_seconds
     while not stop_event.is_set():
         process_next_job(
@@ -291,4 +321,5 @@ def run_worker(
             resolved_queue,
             resolved_handlers,
             timeout=timeout,
+            storage=resolved_storage,
         )

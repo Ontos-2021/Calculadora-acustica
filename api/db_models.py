@@ -253,6 +253,7 @@ class Job(Base):
             name="uq_jobs_idempotency_scope_kind_key",
         ),
     )
+    artifacts: Mapped[list[StoredAsset]] = relationship(back_populates="job")
 
 
 class StoredAsset(Base):
@@ -264,6 +265,9 @@ class StoredAsset(Base):
     )
     license_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("licenses.id", ondelete="CASCADE"), index=True
+    )
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"), index=True
     )
     storage_key: Mapped[str] = mapped_column(String(500), unique=True, index=True)
     filename: Mapped[str] = mapped_column(String(255))
@@ -283,6 +287,7 @@ class StoredAsset(Base):
 
     user: Mapped[User] = relationship(back_populates="stored_assets")
     license: Mapped[License] = relationship(back_populates="stored_assets")
+    job: Mapped[Job | None] = relationship(back_populates="artifacts")
 
     __table_args__ = (
         Index("ix_stored_assets_license_status", "license_id", "status"),

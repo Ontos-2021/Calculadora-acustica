@@ -8,8 +8,8 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .db_models import AssetStatus, AuditEvent, License, StoredAsset, utc_now
-from .licensing import AuthenticatedPrincipal
+from .db_models import AssetStatus, AuditEvent, Job, License, StoredAsset, utc_now
+from .licensing import AuthenticatedPrincipal, effective_quotas
 from .storage import StorageBackend
 
 
@@ -214,6 +214,75 @@ def mark_asset_failed(session: Session, asset: StoredAsset) -> None:
     asset.status = AssetStatus.FAILED
     asset.deleted_at = utc_now()
     session.commit()
+
+
+def create_job_asset(
+    session: Session,
+    storage: StorageBackend,
+    job: Job,
+    *,
+    filename: str,
+    data: bytes,
+) -> StoredAsset:
+    if job.user_id is None or job.license_id is None:
+        raise ValueError("job artifacts require an owned job")
+    existing = session.scalar(
+        select(StoredAsset).where(
+            StoredAsset.job_id == job.id,
+            StoredAsset.status == AssetStatus.READY,
+        )
+    )
+    if existing is not None:
+        return existing
+    license_record = session.scalar(
+        select(License).where(License.id == job.license_id).with_for_update()
+    )
+    if license_record is None:
+        raise ValueError("job license no longer exists")
+    used, _ = session.execute(_usage_query(job.license_id)).one()
+    limit = int(effective_quotas(license_record).get("max_storage_bytes", 0))
+    if len(data) > max(0, limit - int(used)):
+        raise StorageQuotaExceeded("storage quota exceeded for job artifact")
+    asset_id = uuid.uuid4()
+    asset = StoredAsset(
+        id=asset_id,
+        user_id=job.user_id,
+        license_id=job.license_id,
+        job_id=job.id,
+        storage_key=f"users/{job.user_id}/{asset_id}",
+        filename=sanitize_filename(filename),
+        content_type="application/json",
+        size_bytes=len(data),
+        sha256=hashlib.sha256(data).hexdigest(),
+        status=AssetStatus.PENDING,
+    )
+    session.add(asset)
+    session.flush()
+    wrote_object = False
+    try:
+        storage.put(asset.storage_key, data, content_type=asset.content_type)
+        wrote_object = True
+        asset.status = AssetStatus.READY
+        session.add(
+            AuditEvent(
+                actor_user_id=job.user_id,
+                actor_api_key_id=None,
+                action="storage.job_artifact",
+                resource_type="stored_asset",
+                resource_id=str(asset.id),
+                details={"job_id": str(job.id), "size_bytes": len(data)},
+            )
+        )
+        session.commit()
+    except Exception:
+        session.rollback()
+        if wrote_object:
+            try:
+                storage.delete(asset.storage_key)
+            except Exception:
+                pass
+        raise
+    return asset
 
 
 def read_asset(

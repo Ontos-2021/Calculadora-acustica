@@ -22,6 +22,8 @@ usa versionado semántico para las entregas públicas.
   cobrar uploads sin penalizar consultas.
 - Auditoría de objetos, verificación SHA-256 en descarga y reconciliación de
   registros pendientes, contenido ausente y blobs huérfanos.
+- Persistencia automática de resultados de jobs mayores a 64 KiB como
+  artefactos privados asociados al job.
 
 ## [2.0.0] - 2026-08-09
 

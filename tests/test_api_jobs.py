@@ -160,6 +160,41 @@ def test_worker_fails_job_without_registered_handler(
     assert "No worker handler registered" in (view.error or "")
 
 
+def test_worker_stores_large_result_as_artifact(
+    api_context, api_session_factory, api_keys, tmp_path
+):
+    from api.db_models import StoredAsset
+    from api.jobs import get_job_status
+    from api.storage import LocalStorage
+
+    queue = InMemoryJobQueue()
+    storage = LocalStorage(tmp_path / "artifacts")
+    with api_session_factory() as database:
+        principal = authenticate_api_key(
+            database,
+            api_keys[LicenseTier.PAID],
+            pepper=TEST_API_KEY_PEPPER,
+        )
+        assert principal is not None
+        job = enqueue_job(
+            database, queue, "large.result", {}, principal=principal
+        )
+        job_id = job.id
+
+    assert process_next_job(
+        api_session_factory,
+        queue,
+        {"large.result": lambda _payload: {"data": "x" * 70_000}},
+        storage=storage,
+    )
+    with api_session_factory() as database:
+        view = get_job_status(database, job_id)
+        asset = database.query(StoredAsset).filter_by(job_id=job_id).one()
+    assert view is not None and view.status.value == "SUCCEEDED"
+    assert view.result["artifact"]["asset_id"] == str(asset.id)
+    assert storage.exists(asset.storage_key)
+
+
 def test_owner_scoped_job_status_and_cancel(
     client,
     api_session_factory,
