@@ -9,14 +9,16 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Any, Protocol
 
+from pydantic import BaseModel
 from redis import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import Settings, get_settings
 from .database import SessionLocal
 from .db_models import Job, JobStatus, utc_now
 from .licensing import AuthenticatedPrincipal
+from .schemas import FEM2DRequest, HybridRequest, RayTraceRequest
 
 
 class JobQueue(Protocol):
@@ -168,6 +170,33 @@ def cancel_job(
 
 
 JobHandler = Callable[[dict[str, Any]], Mapping[str, Any] | None]
+
+
+@dataclass(frozen=True)
+class JobKindSpec:
+    schema: type[BaseModel]
+    cost: int
+    feature: str = "numerical"
+
+
+JOB_KINDS: Mapping[str, JobKindSpec] = {
+    "numerical.hybrid": JobKindSpec(schema=HybridRequest, cost=50),
+    "numerical.ray-tracing": JobKindSpec(schema=RayTraceRequest, cost=30),
+    "numerical.fem2d": JobKindSpec(schema=FEM2DRequest, cost=25),
+}
+
+
+def active_job_count(session: Session, principal: AuthenticatedPrincipal) -> int:
+    """Count QUEUED or RUNNING jobs owned by the principal's license."""
+    return int(
+        session.scalar(
+            select(func.count(Job.id)).where(
+                Job.license_id == principal.license_id,
+                Job.status.in_((JobStatus.QUEUED, JobStatus.RUNNING)),
+            )
+        )
+        or 0
+    )
 
 
 def process_next_job(

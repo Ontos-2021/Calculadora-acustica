@@ -1799,3 +1799,10 @@ class JobStatusResponse(APIResponseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+
+
+class JobSubmitRequest(APIModel):
+    kind: str = Field(min_length=1, max_length=100)
+    payload: dict[str, object] = Field(default_factory=dict)
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=200)
+    max_attempts: int = Field(default=3, ge=1, le=10)

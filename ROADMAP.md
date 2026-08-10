@@ -16,6 +16,7 @@ La especificación histórica se conserva debajo. Esta tabla es el estado autori
 | Fase 5: medición | Completada | ESS/Farina, WAV RIFF, deconvolución, filtros, espectrograma, Q modal, flutter y calibración |
 | Fase 6: numérico | Completada | Paquete server-only `acoustic_numerics/` con NumPy/SciPy: impedancia, FEM 2D, SAH-BVH y modelo híbrido |
 | Freemium y API pública | Completada | FREE anónimo, PAID/RESEARCH por API key, entitlements, cuotas, rate limiting y jobs |
+| Jobs asíncronos | Completada | POST /jobs con validación de payload, coste por kind e idempotencia; worker con handlers registrados para FEM 2D, ray-tracing e híbrido; límite `max_concurrent_jobs` activo |
 | Frontend profesional | Completada | Feature gates, exportación PDF/CSV/JSON/LaTeX/Typst, accesibilidad móvil y fallback offline FREE |
 
 Validación automatizada actual:

@@ -7,8 +7,20 @@ import os
 from collections.abc import Mapping
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from acoustic_core.absorbers import (
@@ -111,9 +123,16 @@ from acoustic_core.reverberation import calculate_rt60_result, rt60_promedio_sab
 
 from .database import get_db
 from .dependencies import require_feature, verify_endpoint_access
-from .jobs import cancel_job, get_job_status
+from .jobs import (
+    JOB_KINDS,
+    active_job_count,
+    cancel_job,
+    enqueue_job,
+    get_job_queue,
+    get_job_status,
+)
 from .licensing import AuthenticatedPrincipal
-from .rate_limit import enforce_rate_limit
+from .rate_limit import enforce_rate_limit, get_rate_limiter, rate_limit_identity
 from .schemas import (
     MAX_SIGNAL_SAMPLES,
     MAX_UPLOAD_BYTES,
@@ -172,6 +191,7 @@ from .schemas import (
     IsolationRatingsResponse,
     IsolationTargetsResponse,
     JobStatusResponse,
+    JobSubmitRequest,
     LicenseStatusResponse,
     MaterialCategoriesResponse,
     MaterialCatalogMetadataSchema,
@@ -1829,12 +1849,7 @@ def _trace_room(
     return payload
 
 
-@router.post(
-    "/numerical/ray-tracing",
-    response_model=RayTraceResponse,
-    dependencies=[Depends(require_feature("numerical")), Depends(enforce_rate_limit)],
-)
-async def ray_tracing_analysis(data: RayTraceRequest) -> RayTraceResponse:
+def _ray_trace_payload(data: RayTraceRequest) -> RayTraceResponse:
     room = _build_room(data)
     result = _trace_room(
         room,
@@ -1852,11 +1867,15 @@ async def ray_tracing_analysis(data: RayTraceRequest) -> RayTraceResponse:
 
 
 @router.post(
-    "/numerical/hybrid",
-    response_model=HybridResponse,
+    "/numerical/ray-tracing",
+    response_model=RayTraceResponse,
     dependencies=[Depends(require_feature("numerical")), Depends(enforce_rate_limit)],
 )
-async def hybrid_analysis_endpoint(data: HybridRequest) -> HybridResponse:
+async def ray_tracing_analysis(data: RayTraceRequest) -> RayTraceResponse:
+    return _ray_trace_payload(data)
+
+
+def _hybrid_payload(data: HybridRequest) -> HybridResponse:
     from acoustic_numerics.hybrid import FrequencyResponse, hybridize_frequency_responses
 
     room = _build_room(data)
@@ -1962,6 +1981,15 @@ async def hybrid_analysis_endpoint(data: HybridRequest) -> HybridResponse:
     return HybridResponse(**payload)
 
 
+@router.post(
+    "/numerical/hybrid",
+    response_model=HybridResponse,
+    dependencies=[Depends(require_feature("numerical")), Depends(enforce_rate_limit)],
+)
+async def hybrid_analysis_endpoint(data: HybridRequest) -> HybridResponse:
+    return _hybrid_payload(data)
+
+
 @router.get(
     "/license/status",
     response_model=LicenseStatusResponse,
@@ -1994,6 +2022,66 @@ def _job_response(view: object) -> JobStatusResponse:
         started_at=view.started_at,
         finished_at=view.finished_at,
     )
+
+
+@router.post(
+    "/jobs",
+    response_model=JobStatusResponse,
+)
+async def submit_job(
+    data: JobSubmitRequest,
+    request: Request,
+    response: Response,
+    principal: AuthenticatedPrincipal = Depends(require_feature("jobs")),
+    database: Session = Depends(get_db),
+    queue: object = Depends(get_job_queue),
+    limiter: object = Depends(get_rate_limiter),
+) -> JobStatusResponse:
+    spec = JOB_KINDS.get(data.kind)
+    if spec is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported job kind: {data.kind}",
+        )
+    try:
+        validated = spec.schema.model_validate(data.payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="Job payload does not match the kind schema",
+        ) from exc
+
+    client_ip = request.client.host if request.client else None
+    result = limiter.check(
+        rate_limit_identity(principal, client_ip),
+        principal.tier,
+        "/api/v1/jobs",
+        cost=spec.cost,
+        quota_overrides=principal.quotas,
+    )
+    result.raise_if_limited()
+    response.headers.update(result.headers)
+
+    limit = int(principal.quotas.get("max_concurrent_jobs", 1))
+    if active_job_count(database, principal) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail="Job concurrency quota exceeded for this license",
+        )
+
+    job = enqueue_job(
+        database,
+        queue,
+        data.kind,
+        validated.model_dump(mode="json"),
+        principal=principal,
+        idempotency_key=data.idempotency_key,
+        max_attempts=data.max_attempts,
+    )
+    view = get_job_status(database, job.id, principal=principal)
+    if view is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return _job_response(view)
 
 
 @router.get(

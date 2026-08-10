@@ -19,6 +19,7 @@ from acoustic_core.models import Material, Surface, Room
 from api.config import Settings, get_settings
 from api.database import create_database_engine, get_db, init_db
 from api.db_models import LicenseTier
+from api.jobs import InMemoryJobQueue, get_job_queue
 from api.licensing import create_api_key, create_license, create_user
 from api.main import create_app
 from api.rate_limit import FixedWindowRateLimiter, InMemoryFixedWindowBackend, get_rate_limiter
@@ -64,6 +65,7 @@ class APIContext:
     client: TestClient
     session_factory: sessionmaker[Session]
     keys: dict[LicenseTier, str]
+    job_queue: InMemoryJobQueue | None = None
 
 
 @pytest.fixture
@@ -90,9 +92,11 @@ def api_context():
                 raise
 
     limiter = FixedWindowRateLimiter(InMemoryFixedWindowBackend())
+    job_queue = InMemoryJobQueue()
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_rate_limiter] = lambda: limiter
+    app.dependency_overrides[get_job_queue] = lambda: job_queue
 
     keys: dict[LicenseTier, str] = {}
     with factory() as database:
@@ -109,7 +113,7 @@ def api_context():
         database.commit()
 
     with TestClient(app) as test_client:
-        yield APIContext(app=app, client=test_client, session_factory=factory, keys=keys)
+        yield APIContext(app=app, client=test_client, session_factory=factory, keys=keys, job_queue=job_queue)
     engine.dispose()
 
 

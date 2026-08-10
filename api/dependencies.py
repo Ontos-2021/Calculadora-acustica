@@ -30,6 +30,7 @@ FEATURE_MAP: dict[str, frozenset[str]] = {
     "/api/v1/measurement/*": frozenset({"measurement"}),
     "/api/v1/numerical/*": frozenset({"numerical"}),
     "/api/v1/exports/*": frozenset({"exports"}),
+    "/api/v1/jobs": frozenset({"jobs"}),
     "/api/v1/jobs/*": frozenset({"jobs"}),
 }
 
@@ -92,7 +93,9 @@ def verify_endpoint_access(
 get_authenticated_principal = verify_endpoint_access
 
 
-def check_feature(tier: Mapping[str, Any] | AuthenticatedPrincipal | None, endpoint: str) -> bool:
+def check_feature(
+    tier: Mapping[str, Any] | AuthenticatedPrincipal | None, endpoint: str
+) -> bool:
     required = required_features(endpoint)
     if not required:
         return True
@@ -105,7 +108,9 @@ def check_feature(tier: Mapping[str, Any] | AuthenticatedPrincipal | None, endpo
     return required.issubset(available)
 
 
-def ensure_feature(principal: AuthenticatedPrincipal, feature: str) -> AuthenticatedPrincipal:
+def ensure_feature(
+    principal: AuthenticatedPrincipal, feature: str
+) -> AuthenticatedPrincipal:
     if not principal.has_feature(feature):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
