@@ -14,6 +14,8 @@ usa versionado semántico para las entregas públicas.
   esquema de almacenamiento en instalaciones existentes.
 - Backend de almacenamiento app-scoped e inyectable en desarrollo, tests y
   producción, con LocalStorage local y S3 privado en producción.
+- Servicio transaccional de objetos con reserva de cuota por licencia,
+  ownership, integridad SHA-256, compensación y ciclo de vida persistente.
 
 ## [2.0.0] - 2026-08-09
 
