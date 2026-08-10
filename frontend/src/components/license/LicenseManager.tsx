@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useLicense } from "@/context/LicenseProvider";
+import { StorageManager } from "./StorageManager";
 
 function quotaLabel(name: string): string {
   return name
@@ -71,7 +72,8 @@ export function LicenseManager() {
       {error && <p className="mt-1 text-xs text-red-700" role="alert" aria-live="polite">{error}</p>}
 
       {status && expanded && (
-        <div className="mt-3 grid gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2">
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <h2 className="text-xs font-semibold text-gray-700">Funciones habilitadas</h2>
             <p className="mt-1 text-[11px] leading-5 text-gray-600">{status.entitlements.join(" · ")}</p>
@@ -87,6 +89,8 @@ export function LicenseManager() {
               ))}
             </dl>
           </div>
+          </div>
+          <StorageManager />
         </div>
       )}
     </section>

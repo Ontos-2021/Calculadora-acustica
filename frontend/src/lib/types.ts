@@ -9,6 +9,32 @@ export interface EnvironmentInput {
   pressure_pa: number;
 }
 
+export interface StoredAsset {
+  id: string;
+  filename: string;
+  content_type: string;
+  category: "upload" | "wav" | "export" | "job" | string;
+  size_bytes: number;
+  sha256: string;
+  status: "PENDING" | "READY" | "DELETING" | "FAILED";
+  created_at: string;
+}
+
+export interface StoredAssetList {
+  items: StoredAsset[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface StorageUsage {
+  used_bytes: number;
+  limit_bytes: number;
+  remaining_bytes: number;
+  object_count: number;
+  usage_percent: number;
+}
+
 export interface EnvironmentResult extends EnvironmentInput {
   sound_speed_m_s: number;
 }

@@ -8,6 +8,9 @@ import type {
   PressureMapRequest,
   PressureMapResponse,
   RoomRequest,
+  StoredAsset,
+  StoredAssetList,
+  StorageUsage,
 } from "./types";
 
 type ErrorKind = "network" | "unauthorized" | "forbidden" | "rate_limited" | "validation" | "http";
@@ -143,6 +146,54 @@ export function calculate(data: CalculateRequest, apiKey?: string | null, signal
 
 export function fetchLicenseStatus(apiKey: string, signal?: AbortSignal): Promise<LicenseStatus> {
   return apiRequest<LicenseStatus>("license/status", { apiKey, signal });
+}
+
+export function fetchStoredObjects(apiKey: string): Promise<StoredAssetList> {
+  return apiRequest<StoredAssetList>("objects", { apiKey });
+}
+
+export function fetchStorageUsage(apiKey: string): Promise<StorageUsage> {
+  return apiRequest<StorageUsage>("objects/usage", { apiKey });
+}
+
+export function deleteStoredObject(assetId: string, apiKey: string): Promise<void> {
+  return apiRequest<void>(`objects/${encodeURIComponent(assetId)}`, { method: "DELETE", apiKey });
+}
+
+export function downloadStoredObject(assetId: string, apiKey: string): Promise<Blob> {
+  return apiRequest<Blob>(`objects/${encodeURIComponent(assetId)}/download`, {
+    apiKey,
+    responseType: "blob",
+  });
+}
+
+export function uploadStoredObject(
+  file: File,
+  apiKey: string,
+  onProgress: (percent: number) => void,
+): Promise<StoredAsset> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", apiUrl("objects"));
+    request.setRequestHeader("X-API-Key", apiKey);
+    request.responseType = "json";
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
+    };
+    request.onerror = () => reject(new ApiError(0, "No se pudo subir el archivo.", { kind: "network" }));
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress(100);
+        resolve(request.response as StoredAsset);
+        return;
+      }
+      const detail = errorDetail(request.response);
+      reject(new ApiError(request.status, statusMessage(request.status, detail), { detail }));
+    };
+    const form = new FormData();
+    form.append("file", file);
+    request.send(form);
+  });
 }
 
 export function fetchMaterials(apiKey?: string | null): Promise<MaterialInfo[]> {

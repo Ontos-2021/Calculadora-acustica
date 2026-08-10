@@ -26,6 +26,8 @@ usa versionado semántico para las entregas públicas.
   artefactos privados asociados al job.
 - CRUD de proyectos y cálculos, adjuntos de objetos y categorías para uploads,
   WAV, exports y artefactos de jobs.
+- Gestor frontend de almacenamiento con cuota visual, subida con progreso,
+  listado, descarga y borrado accesible desde el diálogo de licencia.
 
 ## [2.0.0] - 2026-08-09
 
