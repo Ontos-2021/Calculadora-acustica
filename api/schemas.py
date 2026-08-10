@@ -1834,6 +1834,12 @@ class StorageUsageResponse(APIResponseModel):
     usage_percent: float
 
 
+class StorageMetricsResponse(APIResponseModel):
+    by_status: dict[str, dict[str, int]]
+    by_category: dict[str, dict[str, int]]
+    backend_available: bool
+
+
 class ProjectCreateRequest(APIModel):
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)

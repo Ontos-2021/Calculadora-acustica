@@ -3,6 +3,8 @@ from __future__ import annotations
 import threading
 import uuid
 import json
+import logging
+import time
 from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -24,6 +26,7 @@ from .storage import StorageBackend, create_storage
 
 
 JOB_ARTIFACT_THRESHOLD_BYTES = 64 * 1024
+logger = logging.getLogger(__name__)
 
 
 class JobQueue(Protocol):
@@ -315,6 +318,7 @@ def run_worker(
     resolved_handlers = handlers or {}
     resolved_storage = storage or create_storage(settings)
     timeout = poll_timeout or settings.worker_poll_timeout_seconds
+    last_reconcile = 0.0
     while not stop_event.is_set():
         process_next_job(
             session_factory,
@@ -323,3 +327,18 @@ def run_worker(
             timeout=timeout,
             storage=resolved_storage,
         )
+        now = time.monotonic()
+        if now - last_reconcile >= settings.storage_reconcile_interval_seconds:
+            try:
+                from .object_service import reconcile_assets
+
+                with session_factory() as session:
+                    result = reconcile_assets(
+                        session,
+                        resolved_storage,
+                        pending_max_age_seconds=settings.storage_pending_max_age_seconds,
+                    )
+                logger.info("storage reconciliation completed: %s", result)
+            except Exception:
+                logger.exception("storage reconciliation failed")
+            last_reconcile = now

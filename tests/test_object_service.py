@@ -17,6 +17,7 @@ from api.object_service import (
     reconcile_assets,
     sanitize_filename,
     storage_usage,
+    storage_metrics,
 )
 from api.storage import LocalStorage
 
@@ -118,3 +119,23 @@ def test_reconcile_removes_orphans(api_session_factory, tmp_path):
         result = reconcile_assets(database, storage)
     assert result["orphans_deleted"] == 1
     assert not storage.exists("users/orphan/blob")
+
+
+def test_storage_metrics_aggregate_status_and_category(
+    api_session_factory, api_keys, tmp_path
+):
+    storage = LocalStorage(tmp_path / "objects")
+    with api_session_factory() as database:
+        principal = _principal(database, api_keys)
+        create_asset(
+            database,
+            storage,
+            principal,
+            filename="report.pdf",
+            content_type="application/pdf",
+            data=b"pdf",
+            category="export",
+        )
+        metrics = storage_metrics(database)
+    assert metrics["by_status"]["READY"]["objects"] == 1
+    assert metrics["by_category"]["export"]["bytes"] == 3

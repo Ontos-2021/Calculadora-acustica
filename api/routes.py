@@ -143,6 +143,7 @@ from .object_service import (
     get_asset,
     list_assets,
     read_asset,
+    storage_metrics,
     storage_usage,
 )
 from .project_service import (
@@ -252,6 +253,7 @@ from .schemas import (
     SpectrogramRequest,
     SpectrogramResponse,
     StorageUsageResponse,
+    StorageMetricsResponse,
     StoredAssetListResponse,
     StoredAssetResponse,
     TargetComparisonRequest,
@@ -2290,6 +2292,26 @@ async def delete_stored_object(
     except StoredAssetNotFound as exc:
         raise HTTPException(status_code=404, detail="Object not found") from exc
     return Response(status_code=204)
+
+
+@router.get(
+    "/storage/metrics",
+    response_model=StorageMetricsResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def storage_metrics_endpoint(
+    principal: AuthenticatedPrincipal = Depends(require_feature("research")),
+    database: Session = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage),
+) -> StorageMetricsResponse:
+    del principal
+    metrics = storage_metrics(database)
+    try:
+        storage.list_keys("")
+        available = True
+    except Exception:
+        available = False
+    return StorageMetricsResponse(**metrics, backend_available=available)
 
 
 def _project_response(project: object) -> ProjectResponse:

@@ -59,3 +59,14 @@ def test_object_api_requires_api_key(client):
     assert client.post(
         "/api/v1/objects", files={"file": ("x", b"x")}
     ).status_code == 401
+
+
+def test_storage_metrics_require_research(client, paid_headers, research_headers):
+    assert client.get(
+        "/api/v1/storage/metrics", headers=paid_headers
+    ).status_code == 403
+    response = client.get(
+        "/api/v1/storage/metrics", headers=research_headers
+    )
+    assert response.status_code == 200
+    assert response.json()["backend_available"] is True

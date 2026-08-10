@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     rate_limit_key_prefix: str = "acoustic:rate-limit"
     job_queue_name: str = "acoustic:jobs"
     worker_poll_timeout_seconds: int = Field(default=5, ge=1, le=60)
+    storage_reconcile_interval_seconds: int = Field(default=3600, ge=60, le=86400)
+    storage_pending_max_age_seconds: int = Field(default=3600, ge=60, le=86400)
 
     model_config = SettingsConfigDict(
         env_prefix="ACOUSTIC_",

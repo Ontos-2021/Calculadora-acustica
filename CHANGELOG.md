@@ -28,6 +28,8 @@ usa versionado semántico para las entregas públicas.
   WAV, exports y artefactos de jobs.
 - Gestor frontend de almacenamiento con cuota visual, subida con progreso,
   listado, descarga y borrado accesible desde el diálogo de licencia.
+- Métricas operativas, reconciliación automática en worker, CLI de mantenimiento
+  y guía de operación S3.
 
 ## [2.0.0] - 2026-08-09
 

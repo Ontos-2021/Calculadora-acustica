@@ -339,3 +339,25 @@ def reconcile_assets(
             orphans += 1
     session.commit()
     return {"repaired": repaired, "failed": failed, "orphans_deleted": orphans}
+
+
+def storage_metrics(session: Session) -> dict[str, object]:
+    rows = session.execute(
+        select(
+            StoredAsset.status,
+            StoredAsset.category,
+            func.count(StoredAsset.id),
+            func.coalesce(func.sum(StoredAsset.size_bytes), 0),
+        ).group_by(StoredAsset.status, StoredAsset.category)
+    ).all()
+    by_status: dict[str, dict[str, int]] = {}
+    by_category: dict[str, dict[str, int]] = {}
+    for status, category, count, size in rows:
+        status_name = status.value
+        by_status.setdefault(status_name, {"objects": 0, "bytes": 0})
+        by_category.setdefault(category, {"objects": 0, "bytes": 0})
+        by_status[status_name]["objects"] += int(count)
+        by_status[status_name]["bytes"] += int(size)
+        by_category[category]["objects"] += int(count)
+        by_category[category]["bytes"] += int(size)
+    return {"by_status": by_status, "by_category": by_category}
