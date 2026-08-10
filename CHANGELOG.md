@@ -10,6 +10,8 @@ usa versionado semántico para las entregas públicas.
 
 - Contrato versionado del subsistema de almacenamiento privado, incluyendo
   ownership, cuota por licencia, ciclo de vida, API e integraciones previstas.
+- Modelo persistente `StoredAsset` y baseline Alembic para evolucionar el
+  esquema de almacenamiento en instalaciones existentes.
 
 ## [2.0.0] - 2026-08-09
 

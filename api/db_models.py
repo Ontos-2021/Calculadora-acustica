@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    BigInteger,
     DateTime,
     Enum,
     ForeignKey,
@@ -42,6 +43,13 @@ class JobStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 
+class AssetStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    READY = "READY"
+    DELETING = "DELETING"
+    FAILED = "FAILED"
+
+
 json_dict_type = MutableDict.as_mutable(JSON)
 
 
@@ -65,6 +73,7 @@ class User(Base):
     projects: Mapped[list[Project]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    stored_assets: Mapped[list[StoredAsset]] = relationship(back_populates="user")
 
 
 class License(Base):
@@ -97,6 +106,7 @@ class License(Base):
     api_keys: Mapped[list[APIKey]] = relationship(
         back_populates="license", cascade="all, delete-orphan"
     )
+    stored_assets: Mapped[list[StoredAsset]] = relationship(back_populates="license")
 
 
 class APIKey(Base):
@@ -242,4 +252,39 @@ class Job(Base):
             "idempotency_key",
             name="uq_jobs_idempotency_scope_kind_key",
         ),
+    )
+
+
+class StoredAsset(Base):
+    __tablename__ = "stored_assets"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    license_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("licenses.id", ondelete="CASCADE"), index=True
+    )
+    storage_key: Mapped[str] = mapped_column(String(500), unique=True, index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(200), default="application/octet-stream")
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[AssetStatus] = mapped_column(
+        Enum(AssetStatus, native_enum=False, length=16),
+        default=AssetStatus.PENDING,
+        index=True,
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, index=True, nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship(back_populates="stored_assets")
+    license: Mapped[License] = relationship(back_populates="stored_assets")
+
+    __table_args__ = (
+        Index("ix_stored_assets_license_status", "license_id", "status"),
+        Index("ix_stored_assets_user_created", "user_id", "created_at"),
     )
