@@ -16,6 +16,8 @@ usa versionado semántico para las entregas públicas.
   producción, con LocalStorage local y S3 privado en producción.
 - Servicio transaccional de objetos con reserva de cuota por licencia,
   ownership, integridad SHA-256, compensación y ciclo de vida persistente.
+- API autenticada `/objects` para subir, listar, consultar uso, descargar y
+  borrar objetos privados.
 
 ## [2.0.0] - 2026-08-09
 

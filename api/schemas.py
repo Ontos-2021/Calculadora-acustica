@@ -1806,3 +1806,28 @@ class JobSubmitRequest(APIModel):
     payload: dict[str, object] = Field(default_factory=dict)
     idempotency_key: str | None = Field(default=None, min_length=1, max_length=200)
     max_attempts: int = Field(default=3, ge=1, le=10)
+
+
+class StoredAssetResponse(APIResponseModel):
+    id: UUID
+    filename: str
+    content_type: str
+    size_bytes: int
+    sha256: str
+    status: Literal["PENDING", "READY", "DELETING", "FAILED"]
+    created_at: datetime
+
+
+class StoredAssetListResponse(APIResponseModel):
+    items: list[StoredAssetResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class StorageUsageResponse(APIResponseModel):
+    used_bytes: int
+    limit_bytes: int
+    remaining_bytes: int
+    object_count: int
+    usage_percent: float

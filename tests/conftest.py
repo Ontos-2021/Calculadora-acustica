@@ -69,7 +69,7 @@ class APIContext:
 
 
 @pytest.fixture
-def api_context():
+def api_context(tmp_path):
     engine = create_database_engine("sqlite:///:memory:")
     init_db(engine)
     factory = sessionmaker(bind=engine, class_=Session, expire_on_commit=False)
@@ -78,6 +78,7 @@ def api_context():
         database_url="sqlite:///:memory:",
         redis_url="redis://127.0.0.1:1/15",
         api_key_pepper=TEST_API_KEY_PEPPER,
+        storage_local_path=tmp_path / "objects",
         _env_file=None,
     )
     app = create_app(settings)

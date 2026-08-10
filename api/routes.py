@@ -5,6 +5,7 @@ import io
 import math
 import os
 from collections.abc import Mapping
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import (
@@ -132,6 +133,15 @@ from .jobs import (
     get_job_status,
 )
 from .licensing import AuthenticatedPrincipal
+from .object_service import (
+    StorageQuotaExceeded,
+    StoredAssetNotFound,
+    create_asset,
+    delete_asset,
+    get_asset,
+    list_assets,
+    storage_usage,
+)
 from .rate_limit import enforce_rate_limit, get_rate_limiter, rate_limit_identity
 from .schemas import (
     MAX_SIGNAL_SAMPLES,
@@ -225,6 +235,9 @@ from .schemas import (
     SkylineResponse,
     SpectrogramRequest,
     SpectrogramResponse,
+    StorageUsageResponse,
+    StoredAssetListResponse,
+    StoredAssetResponse,
     TargetComparisonRequest,
     TargetComparisonResponse,
     TreatmentOptimizationRequest,
@@ -235,6 +248,7 @@ from .schemas import (
     WaterfallResponse,
     WavAnalysisResponse,
 )
+from .storage import StorageBackend, get_storage
 
 
 router = APIRouter()
@@ -2121,3 +2135,138 @@ async def cancel_job_endpoint(
     if updated is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return _job_response(updated)
+
+
+def _asset_response(asset: object) -> StoredAssetResponse:
+    return StoredAssetResponse.model_validate(asset)
+
+
+@router.post(
+    "/objects",
+    response_model=StoredAssetResponse,
+    status_code=201,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def upload_object(
+    file: UploadFile = File(...),
+    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    database: Session = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage),
+) -> StoredAssetResponse:
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    await file.close()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Object upload exceeds {MAX_UPLOAD_BYTES} bytes",
+        )
+    try:
+        asset = create_asset(
+            database,
+            storage,
+            principal,
+            filename=file.filename,
+            content_type=file.content_type,
+            data=data,
+        )
+    except StorageQuotaExceeded as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    return _asset_response(asset)
+
+
+@router.get(
+    "/objects",
+    response_model=StoredAssetListResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def stored_objects(
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    database: Session = Depends(get_db),
+) -> StoredAssetListResponse:
+    items, total = list_assets(database, principal, offset=offset, limit=limit)
+    return StoredAssetListResponse(
+        items=[_asset_response(item) for item in items],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/objects/usage",
+    response_model=StorageUsageResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def object_storage_usage(
+    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    database: Session = Depends(get_db),
+) -> StorageUsageResponse:
+    usage = storage_usage(database, principal)
+    return StorageUsageResponse(
+        used_bytes=usage.used_bytes,
+        limit_bytes=usage.limit_bytes,
+        remaining_bytes=usage.remaining_bytes,
+        object_count=usage.object_count,
+        usage_percent=usage.usage_percent,
+    )
+
+
+@router.get(
+    "/objects/{asset_id}",
+    response_model=StoredAssetResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def stored_object_metadata(
+    asset_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    database: Session = Depends(get_db),
+) -> StoredAssetResponse:
+    try:
+        return _asset_response(get_asset(database, principal, asset_id))
+    except StoredAssetNotFound as exc:
+        raise HTTPException(status_code=404, detail="Object not found") from exc
+
+
+@router.get(
+    "/objects/{asset_id}/download",
+    response_class=Response,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def download_stored_object(
+    asset_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    database: Session = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage),
+) -> Response:
+    try:
+        asset = get_asset(database, principal, asset_id)
+    except StoredAssetNotFound as exc:
+        raise HTTPException(status_code=404, detail="Object not found") from exc
+    if not storage.exists(asset.storage_key):
+        raise HTTPException(status_code=404, detail="Object content not found")
+    filename = quote(asset.filename, safe="")
+    return Response(
+        content=storage.get(asset.storage_key),
+        media_type=asset.content_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+    )
+
+
+@router.delete(
+    "/objects/{asset_id}",
+    status_code=204,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def delete_stored_object(
+    asset_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(verify_endpoint_access),
+    database: Session = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage),
+) -> Response:
+    try:
+        delete_asset(database, storage, principal, asset_id)
+    except StoredAssetNotFound as exc:
+        raise HTTPException(status_code=404, detail="Object not found") from exc
+    return Response(status_code=204)
