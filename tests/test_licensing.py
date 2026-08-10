@@ -69,6 +69,7 @@ def test_schema_initializer_is_idempotent_and_complete(session_factory):
         "calculations",
         "jobs",
         "stored_assets",
+        "project_assets",
     }
 
 

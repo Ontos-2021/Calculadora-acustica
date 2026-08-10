@@ -34,6 +34,8 @@ FEATURE_MAP: dict[str, frozenset[str]] = {
     "/api/v1/jobs/*": frozenset({"jobs"}),
     "/api/v1/objects": frozenset({"storage"}),
     "/api/v1/objects/*": frozenset({"storage"}),
+    "/api/v1/projects": frozenset({"projects"}),
+    "/api/v1/projects/*": frozenset({"projects"}),
 }
 
 

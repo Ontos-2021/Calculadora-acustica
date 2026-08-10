@@ -101,6 +101,7 @@ def create_asset(
     filename: str | None,
     content_type: str | None,
     data: bytes,
+    category: str = "upload",
 ) -> StoredAsset:
     session.scalar(
         select(License).where(License.id == principal.license_id).with_for_update()
@@ -120,6 +121,7 @@ def create_asset(
         storage_key=storage_key,
         filename=sanitize_filename(filename),
         content_type=normalize_content_type(content_type),
+        category=category,
         size_bytes=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         status=AssetStatus.PENDING,
@@ -252,6 +254,7 @@ def create_job_asset(
         storage_key=f"users/{job.user_id}/{asset_id}",
         filename=sanitize_filename(filename),
         content_type="application/json",
+        category="job",
         size_bytes=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         status=AssetStatus.PENDING,

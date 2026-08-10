@@ -123,6 +123,7 @@ from acoustic_core.resonance import (
 from acoustic_core.reverberation import calculate_rt60_result, rt60_promedio_sabine, rt60_sabine
 
 from .database import get_db
+from .db_models import Calculation
 from .dependencies import require_feature, verify_endpoint_access
 from .jobs import (
     JOB_KINDS,
@@ -143,6 +144,14 @@ from .object_service import (
     list_assets,
     read_asset,
     storage_usage,
+)
+from .project_service import (
+    ProjectNotFound,
+    attach_asset,
+    create_project,
+    get_project,
+    list_projects,
+    project_assets,
 )
 from .rate_limit import enforce_rate_limit, get_rate_limiter, rate_limit_identity
 from .schemas import (
@@ -223,6 +232,11 @@ from .schemas import (
     PolygonFEMResponse,
     PorousAbsorberRequest,
     PorousAbsorberResponse,
+    ProjectCreateRequest,
+    ProjectResponse,
+    ProjectUpdateRequest,
+    CalculationCreateRequest,
+    CalculationResponse,
     PressureMapRequest,
     PressureMapResponse,
     QRDPolarRequest,
@@ -2151,6 +2165,7 @@ def _asset_response(asset: object) -> StoredAssetResponse:
 )
 async def upload_object(
     file: UploadFile = File(...),
+    category: str = Form(default="upload"),
     principal: AuthenticatedPrincipal = Depends(require_feature("storage")),
     database: Session = Depends(get_db),
     storage: StorageBackend = Depends(get_storage),
@@ -2162,6 +2177,8 @@ async def upload_object(
             status_code=413,
             detail=f"Object upload exceeds {MAX_UPLOAD_BYTES} bytes",
         )
+    if category not in {"upload", "wav", "export"}:
+        raise HTTPException(status_code=422, detail="Unsupported object category")
     try:
         asset = create_asset(
             database,
@@ -2170,6 +2187,7 @@ async def upload_object(
             filename=file.filename,
             content_type=file.content_type,
             data=data,
+            category=category,
         )
     except StorageQuotaExceeded as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
@@ -2272,3 +2290,166 @@ async def delete_stored_object(
     except StoredAssetNotFound as exc:
         raise HTTPException(status_code=404, detail="Object not found") from exc
     return Response(status_code=204)
+
+
+def _project_response(project: object) -> ProjectResponse:
+    return ProjectResponse.model_validate(project)
+
+
+@router.post(
+    "/projects",
+    response_model=ProjectResponse,
+    status_code=201,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def create_project_endpoint(
+    data: ProjectCreateRequest,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> ProjectResponse:
+    return _project_response(create_project(database, principal, data.name, data.description))
+
+
+@router.get(
+    "/projects",
+    response_model=list[ProjectResponse],
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def projects_endpoint(
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> list[ProjectResponse]:
+    return [_project_response(project) for project in list_projects(database, principal)]
+
+
+@router.get(
+    "/projects/{project_id}",
+    response_model=ProjectResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def project_endpoint(
+    project_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> ProjectResponse:
+    try:
+        return _project_response(get_project(database, principal, project_id))
+    except ProjectNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@router.patch(
+    "/projects/{project_id}",
+    response_model=ProjectResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def update_project_endpoint(
+    project_id: UUID,
+    data: ProjectUpdateRequest,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> ProjectResponse:
+    try:
+        project = get_project(database, principal, project_id)
+    except ProjectNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    if data.name is not None:
+        project.name = data.name.strip()
+    if "description" in data.model_fields_set:
+        project.description = data.description
+    if data.archived is not None:
+        project.archived = data.archived
+    database.commit()
+    return _project_response(project)
+
+
+@router.delete(
+    "/projects/{project_id}",
+    status_code=204,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def delete_project_endpoint(
+    project_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> Response:
+    try:
+        project = get_project(database, principal, project_id)
+    except ProjectNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    database.delete(project)
+    database.commit()
+    return Response(status_code=204)
+
+
+@router.post(
+    "/projects/{project_id}/calculations",
+    response_model=CalculationResponse,
+    status_code=201,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def create_calculation_endpoint(
+    project_id: UUID,
+    data: CalculationCreateRequest,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> CalculationResponse:
+    try:
+        get_project(database, principal, project_id)
+    except ProjectNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    calculation = Calculation(project_id=project_id, **data.model_dump())
+    database.add(calculation)
+    database.commit()
+    return CalculationResponse.model_validate(calculation)
+
+
+@router.get(
+    "/projects/{project_id}/calculations",
+    response_model=list[CalculationResponse],
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def project_calculations_endpoint(
+    project_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> list[CalculationResponse]:
+    try:
+        get_project(database, principal, project_id)
+    except ProjectNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    calculations = database.query(Calculation).filter_by(project_id=project_id).all()
+    return [CalculationResponse.model_validate(item) for item in calculations]
+
+
+@router.post(
+    "/projects/{project_id}/objects/{asset_id}",
+    response_model=StoredAssetResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def attach_project_object_endpoint(
+    project_id: UUID,
+    asset_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> StoredAssetResponse:
+    try:
+        return _asset_response(attach_asset(database, principal, project_id, asset_id))
+    except (ProjectNotFound, StoredAssetNotFound) as exc:
+        raise HTTPException(status_code=404, detail="Project or object not found") from exc
+
+
+@router.get(
+    "/projects/{project_id}/objects",
+    response_model=list[StoredAssetResponse],
+    dependencies=[Depends(enforce_rate_limit)],
+)
+async def project_objects_endpoint(
+    project_id: UUID,
+    principal: AuthenticatedPrincipal = Depends(require_feature("projects")),
+    database: Session = Depends(get_db),
+) -> list[StoredAssetResponse]:
+    try:
+        return [_asset_response(item) for item in project_assets(database, principal, project_id)]
+    except ProjectNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc

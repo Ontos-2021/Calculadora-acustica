@@ -195,6 +195,9 @@ class Project(Base):
     calculations: Mapped[list[Calculation]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    asset_links: Mapped[list[ProjectAsset]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Calculation(Base):
@@ -272,6 +275,7 @@ class StoredAsset(Base):
     storage_key: Mapped[str] = mapped_column(String(500), unique=True, index=True)
     filename: Mapped[str] = mapped_column(String(255))
     content_type: Mapped[str] = mapped_column(String(200), default="application/octet-stream")
+    category: Mapped[str] = mapped_column(String(32), default="upload", index=True)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     status: Mapped[AssetStatus] = mapped_column(
@@ -288,8 +292,28 @@ class StoredAsset(Base):
     user: Mapped[User] = relationship(back_populates="stored_assets")
     license: Mapped[License] = relationship(back_populates="stored_assets")
     job: Mapped[Job | None] = relationship(back_populates="artifacts")
+    project_links: Mapped[list[ProjectAsset]] = relationship(
+        back_populates="asset", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_stored_assets_license_status", "license_id", "status"),
         Index("ix_stored_assets_user_created", "user_id", "created_at"),
     )
+
+
+class ProjectAsset(Base):
+    __tablename__ = "project_assets"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    asset_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("stored_assets.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    project: Mapped[Project] = relationship(back_populates="asset_links")
+    asset: Mapped[StoredAsset] = relationship(back_populates="project_links")

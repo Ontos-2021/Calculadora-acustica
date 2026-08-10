@@ -1812,6 +1812,7 @@ class StoredAssetResponse(APIResponseModel):
     id: UUID
     filename: str
     content_type: str
+    category: str
     size_bytes: int
     sha256: str
     status: Literal["PENDING", "READY", "DELETING", "FAILED"]
@@ -1831,3 +1832,40 @@ class StorageUsageResponse(APIResponseModel):
     remaining_bytes: int
     object_count: int
     usage_percent: float
+
+
+class ProjectCreateRequest(APIModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+
+
+class ProjectUpdateRequest(APIModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    archived: bool | None = None
+
+
+class ProjectResponse(APIResponseModel):
+    id: UUID
+    name: str
+    description: str | None
+    archived: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class CalculationCreateRequest(APIModel):
+    kind: str = Field(min_length=1, max_length=100)
+    input_data: dict[str, object] = Field(default_factory=dict)
+    result_data: dict[str, object] | None = None
+    core_version: str | None = Field(default=None, max_length=50)
+
+
+class CalculationResponse(APIResponseModel):
+    id: UUID
+    project_id: UUID
+    kind: str
+    input_data: dict[str, object]
+    result_data: dict[str, object] | None
+    core_version: str | None
+    created_at: datetime

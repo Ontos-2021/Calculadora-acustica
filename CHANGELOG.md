@@ -24,6 +24,8 @@ usa versionado semántico para las entregas públicas.
   registros pendientes, contenido ausente y blobs huérfanos.
 - Persistencia automática de resultados de jobs mayores a 64 KiB como
   artefactos privados asociados al job.
+- CRUD de proyectos y cálculos, adjuntos de objetos y categorías para uploads,
+  WAV, exports y artefactos de jobs.
 
 ## [2.0.0] - 2026-08-09
 
