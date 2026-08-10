@@ -12,6 +12,8 @@ usa versionado semántico para las entregas públicas.
   ownership, cuota por licencia, ciclo de vida, API e integraciones previstas.
 - Modelo persistente `StoredAsset` y baseline Alembic para evolucionar el
   esquema de almacenamiento en instalaciones existentes.
+- Backend de almacenamiento app-scoped e inyectable en desarrollo, tests y
+  producción, con LocalStorage local y S3 privado en producción.
 
 ## [2.0.0] - 2026-08-09
 

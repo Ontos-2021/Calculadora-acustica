@@ -17,7 +17,7 @@ from .rate_limit import (
     get_rate_limiter,
 )
 from .routes import router
-from .storage import create_storage
+from .storage import StorageBackend, create_storage, get_storage
 
 
 @asynccontextmanager
@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI):
                 InMemoryFixedWindowBackend(),
                 key_prefix=settings.rate_limit_key_prefix,
             )
+            app.state.storage = create_storage(settings)
         yield
     finally:
         engine.dispose()
@@ -92,10 +93,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def app_rate_limiter() -> FixedWindowRateLimiter:
         return app.state.rate_limiter
 
+    def app_storage() -> StorageBackend:
+        return app.state.storage
+
     # Keep settings and infrastructure app-scoped so test/dev environment changes
     # are not lost to module import order.
     app.dependency_overrides[get_db] = app_database_session
     app.dependency_overrides[get_rate_limiter] = app_rate_limiter
+    app.dependency_overrides[get_storage] = app_storage
 
     app.add_middleware(
         CORSMiddleware,

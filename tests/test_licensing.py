@@ -25,7 +25,8 @@ from api.licensing import (
     revoke_license,
     rotate_api_key,
 )
-from api.storage import LocalStorage, S3Storage
+from api.main import create_app
+from api.storage import LocalStorage, S3Storage, get_storage
 
 
 PEPPER = "test-pepper-that-is-long-and-never-used-in-production"
@@ -317,6 +318,22 @@ def test_local_storage_is_atomic_and_rejects_path_traversal(tmp_path):
         storage.put("../outside", b"unsafe")
     storage.delete(stored.key)
     assert not storage.exists(stored.key)
+
+
+def test_app_initializes_injectable_local_storage(tmp_path):
+    settings = Settings(
+        environment="test",
+        database_url="sqlite:///:memory:",
+        redis_url="redis://127.0.0.1:1/15",
+        api_key_pepper=PEPPER,
+        storage_local_path=tmp_path / "objects",
+        _env_file=None,
+    )
+    app = create_app(settings)
+    with TestClient(app):
+        backend = app.dependency_overrides[get_storage]()
+        assert isinstance(backend, LocalStorage)
+        assert backend.root == (tmp_path / "objects").resolve()
 
 
 def test_s3_storage_uses_compatible_object_api_without_network_access():

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
@@ -185,3 +186,9 @@ def create_storage(settings: Settings | None = None) -> StorageBackend:
             else None
         ),
     )
+
+
+@lru_cache
+def get_storage() -> StorageBackend:
+    """Default dependency; applications override it with their app-scoped backend."""
+    return create_storage()
