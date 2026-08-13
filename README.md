@@ -44,6 +44,22 @@ docker compose up --build
 
 Abrir http://localhost (frontend) o http://localhost:8000/docs (API).
 
+Los puertos host pueden configurarse sin modificar el compose mediante un
+archivo `.env` local (ignorado por Git):
+
+```dotenv
+ACOUSTIC_FRONTEND_PORT=8088
+ACOUSTIC_API_PORT=8010
+```
+
+Con esos valores, el frontend queda en http://localhost:8088 y la API en
+http://localhost:8010/docs. Nginx resuelve el contenedor API dinámicamente, por
+lo que las recreaciones del backend no requieren reiniciar el frontend.
+
+El editor de sala conserva los campos como borrador. Los resultados se
+recalculan únicamente al pulsar **Calcular** o **Actualizar análisis**, evitando
+trabajo numérico y solicitudes API mientras se escriben valores parciales.
+
 ## Tests
 
 ```bash
@@ -51,7 +67,7 @@ python3 -m pytest tests/ -q   # 526 tests
 
 cd frontend
 npm run build                 # build estático + TypeScript
-npm run test:e2e              # 47 tests Playwright, incluye build de producción
+npm run test:e2e              # 48 tests Playwright, incluye build de producción
 ```
 
 La suite E2E levanta una API aislada con SQLite y cuotas deterministas, genera

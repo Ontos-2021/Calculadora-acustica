@@ -20,21 +20,6 @@ function askCoreStatus(worker: ServiceWorker): Promise<CoreStatus> {
   });
 }
 
-function waitForController(): Promise<void> {
-  if (navigator.serviceWorker.controller) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-      reject(new Error("Service worker control timeout"));
-    }, 5000);
-    function onControllerChange() {
-      window.clearTimeout(timeout);
-      resolve();
-    }
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange, { once: true });
-  });
-}
-
 export function OfflineBadge() {
   const [online, setOnline] = useState(true);
   const [coreReady, setCoreReady] = useState(false);
@@ -47,25 +32,31 @@ export function OfflineBadge() {
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
 
-    async function register() {
-      if (!("serviceWorker" in navigator)) return;
+    async function refreshOfflineStatus() {
+      if (!("serviceWorker" in navigator)) {
+        setRegistrationError(true);
+        return;
+      }
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         const readyRegistration = await navigator.serviceWorker.ready;
-        await waitForController();
         const worker = readyRegistration.active ?? registration.active ?? registration.waiting;
-        if (!worker) return;
+        if (!worker) throw new Error("Service worker is not active");
         const status = await askCoreStatus(worker);
         setCoreReady(status.ready);
+        setRegistrationError(false);
       } catch {
         setRegistrationError(true);
       }
     }
-    void register();
+    const onControllerChange = () => { void refreshOfflineStatus(); };
+    navigator.serviceWorker?.addEventListener("controllerchange", onControllerChange);
+    void refreshOfflineStatus();
 
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      navigator.serviceWorker?.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
 

@@ -22,15 +22,15 @@ export function BonelloChart({
       },
     },
     grid: {
-      left: "3%",
+      left: "8%",
       right: "4%",
-      bottom: "10%",
+      top: 12,
+      bottom: "18%",
       containLabel: true,
     },
     xAxis: {
       type: "category",
       data: frequencies.map((f) => `${f}`),
-      name: "Frecuencia (Hz)",
       axisLabel: {
         rotate: 45,
         fontSize: 10,
@@ -38,7 +38,6 @@ export function BonelloChart({
     },
     yAxis: {
       type: "value",
-      name: "Cantidad de modos",
       minInterval: 1,
     },
     dataZoom: [
@@ -61,9 +60,9 @@ export function BonelloChart({
   };
 
   return (
-    <EChart
-      option={option}
-      className="h-[clamp(20rem,55vw,24rem)]"
-    />
+    <div className="mt-5 border-t pt-4">
+      <p className="mb-2 text-sm font-semibold text-foreground">Cantidad de modos por frecuencia</p>
+      <EChart option={option} className="h-[clamp(18rem,45vw,22rem)]" />
+    </div>
   );
 }

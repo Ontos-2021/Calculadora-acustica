@@ -47,7 +47,7 @@ services:
       context: .
       dockerfile: Dockerfile.api
     ports:
-      - "8000:8000"
+      - "${ACOUSTIC_API_PORT:-8000}:8000"
     environment: *platform-environment
     volumes:
       - platform_storage:/app/var/storage
@@ -95,7 +95,7 @@ services:
       context: ./frontend
       dockerfile: ../Dockerfile.frontend
     ports:
-      - "80:80"
+      - "${ACOUSTIC_FRONTEND_PORT:-80}:80"
     depends_on:
       api:
         condition: service_healthy

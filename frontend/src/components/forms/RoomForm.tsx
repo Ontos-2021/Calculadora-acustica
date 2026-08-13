@@ -60,9 +60,8 @@ function requestFromForm(form: FormState): CalculateRequest | null {
   return { largo, ancho, alto, superficies, environment: { temperature_c: temperature, relative_humidity: humidity, pressure_pa: pressure }, include_air_attenuation: form.includeAir, ...(form.uso ? { uso: form.uso } : {}) };
 }
 
-export function RoomForm({ initialRequest, onRequestChange, onCalculate, progressive = false }: {
+export function RoomForm({ initialRequest, onCalculate, progressive = false }: {
   initialRequest?: CalculateRequest | null;
-  onRequestChange?: (request: CalculateRequest) => void;
   onCalculate?: (request: CalculateRequest) => void;
   progressive?: boolean;
 } = {}) {
@@ -79,13 +78,6 @@ export function RoomForm({ initialRequest, onRequestChange, onCalculate, progres
   const [filter, setFilter] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [showAlpha, setShowAlpha] = useState<Record<number, boolean>>({});
-
-  useEffect(() => {
-    const request = requestFromForm(form);
-    if (!request || !onRequestChange) return;
-    const timer = window.setTimeout(() => onRequestChange(request), 120);
-    return () => window.clearTimeout(timer);
-  }, [form, onRequestChange]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -111,6 +103,7 @@ export function RoomForm({ initialRequest, onRequestChange, onCalculate, progres
   const grouped = materials.filter((material) => (!filter || material.nombre.toLowerCase().includes(filter.toLowerCase())) && (!selectedCategory || material.categoria === selectedCategory))
     .reduce<Record<string, MaterialInfo[]>>((groups, material) => { (groups[material.categoria] ||= []).push(material); return groups; }, {});
   const dimensionsValid = Boolean(requestFromForm({ ...form, temperature: "20", humidity: "50", pressure: "101325" }));
+  const hasPendingChanges = Boolean(initialRequest && JSON.stringify(form) !== JSON.stringify(toForm(initialRequest)));
 
   function submit(event: FormEvent) {
     event.preventDefault(); setError(null);
@@ -135,7 +128,7 @@ export function RoomForm({ initialRequest, onRequestChange, onCalculate, progres
       </fieldset>
 
       {(!progressive || dimensionsValid) && <>
-        <details className="group" open={!progressive}>
+        <details className="group" open={!progressive || dimensionsValid}>
           <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">2 · Ambiente <span className="float-right text-teal-700 group-open:rotate-180">⌄</span></summary>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <Field htmlFor="env-temperature" label="Temperatura °C"><Input id="env-temperature" type="number" min="-50" max="100" step="0.1" value={form.temperature} onChange={(event) => setForm((current) => ({ ...current, temperature: event.target.value }))} /></Field>
@@ -172,7 +165,8 @@ export function RoomForm({ initialRequest, onRequestChange, onCalculate, progres
           <Select id="sala-uso" aria-label="Uso de la sala" value={form.uso} onChange={(event) => setForm((current) => ({ ...current, uso: event.target.value }))}><option value="">Sin comparación objetivo</option>{Object.entries(USES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
         </Field>
       </>}
-      <Button type="submit" className="w-full" disabled={materialsLoading}>Calcular</Button>
+      {hasPendingChanges && <p className="text-center text-xs font-medium text-amber-700 dark:text-amber-400" role="status">Cambios sin aplicar</p>}
+      <Button type="submit" className="w-full" disabled={materialsLoading}>{initialRequest ? "Actualizar análisis" : "Calcular"}</Button>
     </form>
   );
 }

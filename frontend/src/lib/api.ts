@@ -61,6 +61,7 @@ function statusMessage(status: number, detail: string | null): string {
   if (status === 401) return `La clave API no es válida, está inactiva o falta.${suffix}`.trim();
   if (status === 403) return `La licencia no incluye esta función.${suffix}`.trim();
   if (status === 429) return `Se alcanzó la cuota o el límite temporal de solicitudes.${suffix}`.trim();
+  if (status === 502 || status === 503 || status === 504) return "El servidor está ocupado o tardó demasiado en responder. Inténtalo de nuevo.";
   if (status === 422) return `Revisa los datos ingresados.${suffix}`.trim();
   return detail || `La API respondió con estado ${status}.`;
 }
@@ -127,7 +128,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   if (!response.ok) {
     const payload = await response.clone().json().catch(() => null);
-    const detail = errorDetail(payload) || (await response.text().catch(() => "")) || null;
+    const contentType = response.headers.get("Content-Type") || "";
+    const responseText = contentType.includes("text/html") ? "" : await response.text().catch(() => "");
+    const detail = errorDetail(payload) || responseText || null;
     const retryHeader = response.headers.get("Retry-After");
     throw new ApiError(response.status, statusMessage(response.status, detail), {
       detail,

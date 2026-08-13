@@ -1130,7 +1130,7 @@ async def optimize_inverse_treatment(
     dependencies=[Depends(enforce_rate_limit)],
     openapi_extra={"security": [{}, {"APIKeyHeader": []}]},
 )
-async def pressure_map(data: PressureMapRequest) -> PressureMapResponse:
+def pressure_map(data: PressureMapRequest) -> PressureMapResponse:
     room = _build_room(data)
     modes = calculate_modes(room, f_max=data.max_freq)
     if data.mode_indices is not None:

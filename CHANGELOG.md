@@ -32,14 +32,43 @@ usa versionado semántico para las entregas públicas.
   y guía de operación S3.
 - Reserva de cuota y uploads multipart S3 presignados con confirmación de tamaño,
   partes de 8 MiB y expiración de una hora.
+- Puertos Docker configurables mediante `ACOUSTIC_FRONTEND_PORT` y
+  `ACOUSTIC_API_PORT`, con valores predeterminados compatibles.
+- Regresión Playwright que comprueba que editar lentamente una sala no solicita
+  cálculos hasta confirmar el formulario.
+
+### Cambiado
+
+- El formulario de sala mantiene un borrador local y aplica dimensiones,
+  ambiente y materiales solo al pulsar `Calcular` o `Actualizar análisis`.
+- El gráfico de Bonello separa su título de la tabla, aprovecha mejor el espacio
+  vertical y evita recortes de las etiquetas en viewports estrechos.
+
+### Corregido
+
+- La imagen API/worker incluye `acoustic_numerics`, restaurando impedancia
+  finita, FEM, ray tracing e hibridación en despliegues Docker.
+- El mapa de presión se ejecuta en el pool síncrono de FastAPI y deja de bloquear
+  el event loop y otros endpoints durante cálculos pesados o cancelados.
+- Nginx actualiza la resolución DNS del contenedor API después de recreaciones,
+  evitando respuestas `502` por direcciones internas obsoletas.
+- El indicador offline consulta directamente al service worker activo y reintenta
+  en cambios de controlador, evitando falsos avisos `Offline no disponible`.
+- El cliente API convierte `502`, `503` y `504` en mensajes legibles y no muestra
+  páginas HTML del proxy como texto de error.
 
 ### Validación
 
 - `python3 -m pytest tests/ -q`: 526 pruebas aprobadas.
 - `npm run build`: Next.js export estático y TypeScript aprobados.
 - `npm run test:e2e`: 47 pruebas Playwright aprobadas.
+- Regresión de borrador ejecutada en Chromium: 1 prueba aprobada; la suite queda
+  compuesta por 48 escenarios Playwright.
 - Imagen API construida y migraciones verificadas hasta
   `0004_multipart_uploads (head)`.
+- Verificación Docker real: impedancia finita, FEM 2D, absorbente poroso y
+  concurrencia con mapa de presión respondieron `200`; recreación de API
+  comprobada sin perder el proxy frontend.
 
 ## [2.0.0] - 2026-08-09
 

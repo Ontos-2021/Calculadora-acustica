@@ -26,7 +26,7 @@ export function Workspace() {
 
   useEffect(() => { if (decoded) setRequest(decoded); }, [decoded, setRequest]);
 
-  const editor = <><ProjectControls /><RoomForm key={activeProjectId || encoded || "draft"} initialRequest={current} onRequestChange={setRequest} progressive={!current} onCalculate={(next) => { setRequest(next); setSheetOpen(false); router.push(`/results?data=${encodeRequestData(next)}`); }} /></>;
+  const editor = <><ProjectControls /><RoomForm key={activeProjectId || encoded || "draft"} initialRequest={current} progressive={!current} onCalculate={(next) => { setSheetOpen(false); router.push(`/results?data=${encodeRequestData(next)}`); }} /></>;
 
   return <div className="mx-auto max-w-[1600px] lg:grid lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
     <aside className="scrollbar-thin hidden h-[calc(100dvh-3.5rem)] overflow-y-auto border-r bg-surface p-4 lg:sticky lg:top-14 lg:block xl:p-5" aria-label="Parámetros de la sala">{editor}</aside>

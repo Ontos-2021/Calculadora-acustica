@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && chown -R acoustic:acoustic /app
 
 COPY --chown=acoustic:acoustic acoustic_core/ acoustic_core/
+COPY --chown=acoustic:acoustic acoustic_numerics/ acoustic_numerics/
 COPY --chown=acoustic:acoustic api/ api/
 COPY --chown=acoustic:acoustic worker/ worker/
 COPY --chown=acoustic:acoustic alembic.ini ./
