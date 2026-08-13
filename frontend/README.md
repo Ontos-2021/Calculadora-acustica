@@ -32,7 +32,10 @@ npm run test:e2e
 RESEARCH deterministas, levanta una API aislada en `127.0.0.1:8010` y sirve el
 frontend con proxy en `127.0.0.1:3100`. La suite contiene 47 pruebas de cálculo,
 tratamiento, aislamiento, medición, métodos numéricos, exportación, PWA,
-accesibilidad y respuesta móvil.
+accesibilidad y respuesta móvil. La prueba de catálogo con red caída se ejecuta
+con `serviceWorkers: "block"`: `page.route` no intercepta solicitudes atendidas
+por un service worker, así que es necesario desactivarlo para simular el fallo
+de red y ejercitar el fallback FREE y el reintento.
 
 ## Offline/PWA
 

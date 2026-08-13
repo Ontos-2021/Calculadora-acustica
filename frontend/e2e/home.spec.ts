@@ -33,16 +33,6 @@ test.describe("Página principal y catálogo", () => {
     await page.keyboard.press("Escape");
   });
 
-  test("recupera materiales incluidos cuando falla la red y permite reintentar", async ({ page }) => {
-    test.info().annotations.push({ type: "expected-console-error", description: "ERR_CONNECTION_REFUSED" });
-    await page.route("**/api/v1/materials/defaults**", (route) => route.abort("connectionrefused"));
-    await page.reload();
-    await fillRoom(page, { largo: "8.5", ancho: "6", alto: "3" });
-    await expect(page.getByText(/Se usan los materiales FREE incluidos/)).toBeVisible();
-    await expect(page.locator("#mat-frente option")).toHaveCount(8);
-    await expect(page.getByRole("button", { name: "Reintentar catálogo" })).toBeVisible();
-  });
-
   test("edita coeficientes personalizados con controles etiquetados", async ({ page }) => {
     await fillRoom(page, { largo: "8.5", ancho: "6", alto: "3" });
     await page.getByRole("button", { name: "α personalizado" }).first().click();
@@ -55,5 +45,19 @@ test.describe("Página principal y catálogo", () => {
   test("indica conectividad y preparación real del núcleo offline", async ({ page }) => {
     await expect(page.locator("[data-offline-ready]")).toContainText(/Online/);
     await expect(page.locator("[data-offline-ready='true']")).toBeVisible({ timeout: 15_000 });
+  });
+});
+
+test.describe("Catálogo FREE con red caída", () => {
+  test.use({ serviceWorkers: "block" });
+
+  test("recupera materiales incluidos cuando falla la red y permite reintentar", async ({ page }) => {
+    test.info().annotations.push({ type: "expected-console-error", description: "ERR_CONNECTION_REFUSED" });
+    await page.route("**/api/v1/materials/defaults**", (route) => route.abort("connectionrefused"));
+    await page.goto("/");
+    await fillRoom(page, { largo: "8.5", ancho: "6", alto: "3" });
+    await expect(page.getByText(/Se usan los materiales FREE incluidos/)).toBeVisible();
+    await expect(page.locator("#mat-frente option")).toHaveCount(8);
+    await expect(page.getByRole("button", { name: "Reintentar catálogo" })).toBeVisible();
   });
 });

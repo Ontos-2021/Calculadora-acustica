@@ -56,6 +56,10 @@ usa versionado semántico para las entregas públicas.
   en cambios de controlador, evitando falsos avisos `Offline no disponible`.
 - El cliente API convierte `502`, `503` y `504` en mensajes legibles y no muestra
   páginas HTML del proxy como texto de error.
+- La regresión E2E de catálogo con red caída desactiva el Service Worker en su
+  contexto: `page.route` no intercepta solicitudes atendidas por un service
+  worker, por lo que el fallback FREE y el botón de reintento no llegaban a
+  ejercitarse en CI.
 
 ### Validación
 
@@ -64,6 +68,8 @@ usa versionado semántico para las entregas públicas.
 - `npm run test:e2e`: 47 pruebas Playwright aprobadas.
 - Regresión de borrador ejecutada en Chromium: 1 prueba aprobada; la suite queda
   compuesta por 48 escenarios Playwright.
+- Regresión de catálogo con red caída ejecutada en Chromium con Service Worker
+  desactivado: 1 prueba aprobada.
 - Imagen API construida y migraciones verificadas hasta
   `0004_multipart_uploads (head)`.
 - Verificación Docker real: impedancia finita, FEM 2D, absorbente poroso y
